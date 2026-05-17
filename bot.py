@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # 2. إعداد التوكن والآيدي المعتمد الصحيح من صورك 🎯
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAF0SivQS_NiDcPaYiZFrt1p0Ep_T13lJTw")
-ADMIN_CHAT_ID = "1843236081"  # آيدي حسابك الحقيقي لاستقبال الإشعارات
+ADMIN_CHAT_ID = "1843236081"  # آيدي حسابك الحقيقي من الصورة
 SUPPORT_LINK = "https://t.me/Syrusdt"
 
 # عناوين المحافظ الرسمية الصحيحة والمحدثة من صورك 🌐
@@ -24,7 +24,7 @@ MY_WALLETS = {
     "TRC20": "TAnv4K6gGk99G35uD71NymqXF2uC57xJAt",
     "BEP20": "0x7856799059F8b5123d24c0Bc3A59dfaFdD7b9815",
     "TON": "UQDbXMU9L45iztaFrwQdXMMqd6pMjsDPma4Jba_pWTRnSfEa",  
-    "SHAM_CASH": "9542037"  # رقم حساب شام كاش الصحيح من صورتك
+    "SHAM_CASH": "9542037"  # حساب شام كاش الصحيح
 }
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -95,7 +95,7 @@ def admin_panel(message):
     )
     bot.reply_to(message, prices_info, parse_mode="Markdown", reply_markup=markup)
 
-# 5. القائمة الرئيسية للنظام
+# 5. القائمة الرئيسية للنظام (نظيفة جداً وبزرين صرافة وحوالات شام كاش فقط)
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
@@ -301,9 +301,9 @@ def receive_receipt_photo(message):
         except Exception:
             pass
 
-# 9. خادم ويب مدمج ومتوافق مع Render
+# 9. خادم ويب مدمج ومتوافق مع Render لضمان الاستقرار الحركي للبوت ومنع توقفه
 async def handle_render_web_request(request):
-    return web.Response(text="Syria USDT Exchange Bot Is Fully Configured with Sham Cash!")
+    return web.Response(text="Syria Pure USDT Exchange Bot Is Fully Cleaned And Online!")
 
 def start_isolated_web_server():
     loop = asyncio.new_event_loop()
