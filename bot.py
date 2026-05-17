@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والإعدادات الثابتة (التوكن النظامي الصحيح 100%)
+# 2. البيانات الأساسية والإعدادات الثابتة (التوكن النظامي الصحيح مثبت بالمتن)
 BOT_TOKEN = "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA"
 ADMIN_CHAT_ID = "920536751"  
 SUPPORT_LINK = "https://t.me/Syrusdt"
@@ -41,12 +41,20 @@ def init_db():
     cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, balance REAL DEFAULT 0.0)')
     cursor.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)')
     
+    # أسعار ومحددات الصرافة للـ USDT
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_buy_rate', '15000')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_sell_rate', '14800')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('my_commission', '200')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_trc20', '1.5')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_bep20', '0.3')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_ton', '0.5')") 
+    
+    # إعدادات متجر الخدمات (موسى كارد) ونسب الأرباح الإضافية للأدمن
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_3', '5')")
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_4', '10')")
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_5', '15')")
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_6', '20')")
+    
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('work_hours', '10:00 AM - 12:00 PM')")
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('bot_status', 'ON')")
     
@@ -68,24 +76,24 @@ def update_setting(key, value):
     conn.commit()
     conn.close()
 
-# 4. حاسبة الأرباح التلقائية للمتجر (حسب طول الرقم)
+# 4. حاسبة الأرباح التلقائية للمتجر بناءً على طول خانات السعر المجلوب من موسى كارد
 def calculate_custom_price(original_price_str):
     try:
         raw_price = float(original_price_str)
         price_int = int(raw_price)
         num_digits = len(str(price_int))
         
-        if num_digits == 3: addition = 5
-        elif num_digits == 4: addition = 10
-        elif num_digits == 5: addition = 15
-        elif num_digits == 6: addition = 20
+        if num_digits == 3: addition = float(get_setting('store_profit_3'))
+        elif num_digits == 4: addition = float(get_setting('store_profit_4'))
+        elif num_digits == 5: addition = float(get_setting('store_profit_5'))
+        elif num_digits == 6: addition = float(get_setting('store_profit_6'))
         else: addition = 0
         
-        return price_int + addition
+        return int(price_int + addition)
     except Exception:
         return original_price_str
 
-# 5. جلب خدمات Mousa Card مع تحسين الفلترة الذكية والخيار الاحتياطي
+# 5. جلب خدمات Mousa Card وتصنيفها ذكياً
 def fetch_mousa_products_by_category(category_keyword):
     try:
         headers = {"Authorization": f"Bearer {MOUSA_API_TOKEN}", "Content-Type": "application/json"}
@@ -113,7 +121,7 @@ def fetch_mousa_products_by_category(category_keyword):
                         filtered_products.append(service)
             
             if not filtered_products and all_services:
-                return all_services[:10]
+                return all_services[:12]
                 
             return filtered_products
         return []
@@ -121,7 +129,7 @@ def fetch_mousa_products_by_category(category_keyword):
         logger.error(f"❌ خطأ أثناء الاتصال بـ Mousa Card API: {e}")
         return []
 
-# 6. لوحة تحكم الأدمن (/admin)
+# 6. لوحة تحكم الأدمن الشاملة بالكامل (/admin)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if str(message.from_user.id) != ADMIN_CHAT_ID:
@@ -130,12 +138,18 @@ def admin_panel(message):
     
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("💵 سعر الشراء الخام", callback_data="set_buy"),
-        types.InlineKeyboardButton("💵 سعر المبيع الخام", callback_data="set_sell"),
-        types.InlineKeyboardButton("💰 عمولتك بالليرة", callback_data="set_mycomm"),
-        types.InlineKeyboardButton("🌐 عمولة منصة TRC20", callback_data="set_feetrc"),
-        types.InlineKeyboardButton("🌐 عمولة منصة BEP20", callback_data="set_feebep"),
-        types.InlineKeyboardButton("🌐 عمولة منصة TON", callback_data="set_feeton"),
+        types.InlineKeyboardButton("💵 شراء USDT خام", callback_data="set_buy"),
+        types.InlineKeyboardButton("💵 مبيع USDT خام", callback_data="set_sell"),
+        types.InlineKeyboardButton("💰 عمولة الـ USDT", callback_data="set_mycomm"),
+        types.InlineKeyboardButton("🌐 عمولة TRC20", callback_data="set_feetrc"),
+        types.InlineKeyboardButton("🌐 عمولة BEP20", callback_data="set_feebep"),
+        types.InlineKeyboardButton("🌐 عمولة TON", callback_data="set_feeton"),
+        # أزرار تحكم عمولات خانات المتجر
+        types.InlineKeyboardButton("🔺 أرباح 3 خانات", callback_data="set_prof3"),
+        types.InlineKeyboardButton("🔺 أرباح 4 خانات", callback_data="set_prof4"),
+        types.InlineKeyboardButton("🔺 أرباح 5 خانات", callback_data="set_prof5"),
+        types.InlineKeyboardButton("🔺 أرباح 6 خانات", callback_data="set_prof6"),
+        
         types.InlineKeyboardButton("⏰ أوقات العمل", callback_data="set_hours"),
         types.InlineKeyboardButton("🟢 تشغيل الصرافة", callback_data="status_ON"),
         types.InlineKeyboardButton("🔴 إيقاف الصرافة", callback_data="status_OFF")
@@ -143,20 +157,24 @@ def admin_panel(message):
     
     current_status = "نشط ✅" if get_setting("bot_status") == "ON" else "متوقف مؤقتاً ❌"
     admin_msg = (
-        "🛠️ **لوحة التحكم المباشرة للإدارة وحساب العمولات:**\n\n"
+        "🛠️ **لوحة التحكم المباشرة الشاملة للإدارة وحساب الأسعار والعمولات:**\n\n"
+        "📈 **[قسم صرافة الـ USDT]:**\n"
         f"• سعر الشراء الخام: `{get_setting('usdt_buy_rate')}` SYP\n"
         f"• سعر المبيع الخام: `{get_setting('usdt_sell_rate')}` SYP\n"
-        f"• عمولتك الشخصية المضافة: `{get_setting('my_commission')}` SYP / لكل 1 USDT\n"
-        f"• عمولة سحب المنصة لـ TRC20: `{get_setting('network_fee_trc20')}` USDT\n"
-        f"• عمولة سحب المنصة لـ BEP20: `{get_setting('network_fee_bep20')}` USDT\n"
-        f"• عمولة سحب المنصة لـ TON: `{get_setting('network_fee_ton')}` USDT\n"
-        f"• ساعات العمل: `{get_setting('work_hours')}`\n"
+        f"• عمولتك المضافة لكل 1 دولار: `{get_setting('my_commission')}` SYP\n"
+        f"• عمولات سحب الشبكات: TRC20: `{get_setting('network_fee_trc20')}` | BEP20: `{get_setting('network_fee_bep20')}` | TON: `{get_setting('network_fee_ton')}` USDT\n\n"
+        "🛍️ **[قسم أرباح ونسب المتجر الذكي]:**\n"
+        f"• زيادة الأرقام من 3 خانات: `+{get_setting('store_profit_3')}` SYP\n"
+        f"• زيادة الأرقام من 4 خانات: `+{get_setting('store_profit_4')}` SYP\n"
+        f"• زيادة الأرقام من 5 خانات: `+{get_setting('store_profit_5')}` SYP\n"
+        f"• زيادة الأرقام من 6 خانات: `+{get_setting('store_profit_6')}` SYP\n\n"
+        f"• ساعات العمل المعروضة: `{get_setting('work_hours')}`\n"
         f"• حالة استقبال المعاملات: **{current_status}**\n\n"
-        "اختر البند المراد تحديثه لتعديله فوراً بالبوت:"
+        "اضغط على أي بند بالأسفل لتعديل قيمته فوراً بنظام التحديث الحي:"
     )
     bot.reply_to(message, admin_msg, parse_mode="Markdown", reply_markup=markup)
 
-# 7. واجهات الزبون والقائمة الرئيسية
+# 7. واجهات الزبون والقائمة الرئيسية مع الأزرار والرسائل المقسمة
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
@@ -176,6 +194,7 @@ def send_welcome(message):
 def handle_query(call):
     user_id = str(call.from_user.id)
     
+    # معالجة ضغطات أزرار التعديل للإدارة
     if call.data.startswith("set_") and user_id == ADMIN_CHAT_ID:
         setting_type = call.data.split("_")[1]
         user_trade_steps[user_id] = {"state": f"EDIT_{setting_type.upper()}"}
@@ -183,11 +202,15 @@ def handle_query(call):
         prompt_texts = {
             "buy": "✏️ أرسل سعر **شراء** الـ USDT الخام بالليرة السورية:",
             "sell": "✏️ أرسل سعر **مبيع** الـ USDT الخام بالليرة السورية:",
-            "mycomm": "✏️ أرسل قيمتك الربحية الشخصية المضافة بالليرة السورية لكل دولار:",
+            "mycomm": "✏️ أرسل قيمتك الربحية المضافة بالليرة السورية لكل دولار:",
             "feetrc": "✏️ أرسل عمولة سحب شبكة TRC20 بالـ USDT:",
             "feebep": "✏️ أرسل عمولة سحب شبكة BEP20 بالـ USDT:",
             "feeton": "✏️ أرسل عمولة سحب شبكة TON بالـ USDT:",
-            "hours": "✏️ أرسل نص أوقات العمل الجديد ليعرض للزبائن بالتفصيل:"
+            "prof3": "✏️ حدد قيمة الربح المضافة للرقم المكون من **3 خانات** بالليرة:",
+            "prof4": "✏️ حدد قيمة الربح المضافة للرقم المكون من **4 خانات** بالليرة:",
+            "prof5": "✏️ حدد قيمة الربح المضافة للرقم المكون من **5 خانات** بالليرة:",
+            "prof6": "✏️ حدد قيمة الربح المضافة للرقم المكون من **6 خانات** بالليرة:",
+            "hours": "✏️ أرسل نص أوقات العمل الجديد بالتفصيل:"
         }
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=prompt_texts[setting_type], parse_mode="Markdown")
         return
@@ -199,6 +222,7 @@ def handle_query(call):
         admin_panel(call.message)
         return
 
+    # تصفح أقسام المتجر الأساسية
     if call.data == "browse_store":
         markup = types.InlineKeyboardMarkup(row_width=3)
         markup.add(
@@ -207,11 +231,11 @@ def handle_query(call):
             types.InlineKeyboardButton("🌐 VPN", callback_data="prod_vpn")
         )
         markup.add(types.InlineKeyboardButton("🔙 العودة للقائمة الرئيسية", callback_data="main_menu"))
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ يرجى اختيار القسم لتصفحه مع حاسبة الأرباح التلقائية:", reply_markup=markup)
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ يرجى اختيار القسم المراد تصفحه الآن (سيتم تطبيق نسب الحسبة التلقائية):", reply_markup=markup)
         
     elif call.data.startswith("prod_"):
         category = call.data.split("_")[1]
-        bot.answer_callback_query(call.id, "🔄 جاري جلب المنتجات وتطبيق العمولة التلقائية...")
+        bot.answer_callback_query(call.id, "🔄 جاري جلب المنتجات وتطبيق التنسيق الثلاثي الأعمدة...")
         products = fetch_mousa_products_by_category(category)
         
         if not products:
@@ -220,13 +244,54 @@ def handle_query(call):
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="⚠️ هذا القسم قيد التحديث المؤقت حالياً من المصدر.", reply_markup=markup)
             return
             
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        for prod in products[:10]:
+        # 🟢 بناء واجهة عرض أزرار المنتجات من 3 أعمدة متناسقة بالكامل
+        markup = types.InlineKeyboardMarkup(row_width=3)
+        btn_list = []
+        for prod in products[:12]:
             final_p = calculate_custom_price(prod.get("rate", "0"))
-            markup.add(types.InlineKeyboardButton(f"{prod.get('name')} | 💰 {final_p} SYP", callback_data=f"buy_{prod.get('id')}"))
+            btn_list.append(types.InlineKeyboardButton(f"{prod.get('name')} | {final_p} SP", callback_data=f"sel_{prod.get('id')}_{final_p}"))
+        
+        for i in range(0, len(btn_list), 3):
+            markup.add(*btn_list[i:i+3])
+            
         markup.add(types.InlineKeyboardButton("🔙 العودة للأقسام", callback_data="browse_store"))
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🎁 المنتجات والخدمات المتاحة الحية بالليرة السورية شاملة الأرباح:", reply_markup=markup)
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🎁 المنتجات الحية والخدمات المتاحة بالليرة السورية شاملة الأرباح الفورية (3 أعمدة):", reply_markup=markup)
 
+    elif call.data.startswith("sel_"):
+        parts = call.data.split("_")
+        prod_id = parts[1]
+        prod_price = parts[2]
+        
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton("✅ تأكيد الشراء الفوري وإرسال الطلب", callback_data=f"conf_{prod_id}_{prod_price}"),
+            types.InlineKeyboardButton("🔙 إلغاء والعودة للقائمة", callback_data="browse_store")
+        )
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=f"🛍️ **تأكيد عملية الشراء:**\n\n• معرف خدمة موسى كارد: `{prod_id}`\n• السعر الإجمالي المطلوب دفعه: **{prod_price} ليرة سورية**\n\nعند الضغط على تأكيد، سيتم توجيه طلبك فوراً لغرفة الإدارة المالية.", parse_mode="Markdown", reply_markup=markup)
+
+    elif call.data.startswith("conf_"):
+        parts = call.data.split("_")
+        prod_id = parts[1]
+        prod_price = parts[2]
+        
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❤️ **تم إرسال طلب الشراء الخاص بك بنجاح إلى الإدارة المالية!**\nسيقوم الدعم الفني بمطابقة الحساب والتواصل معك لتسليم الخدمة فوراً.")
+        
+        # إرسال رسالة منظمة للأدمن بتفاصيل الطلب
+        admin_order_msg = (
+            f"🛒 **طلب شراء خدمة جديد وارد من متجر موسى كارد!**\n\n"
+            f"👤 **بيانات العميل طالب الخدمة:**\n"
+            f"• الاسم: {call.from_user.first_name}\n"
+            f"• اليوزر: @{call.from_user.username if call.from_user.username else 'لا يوجد'}\n"
+            f"• الآيدي: `{user_id}`\n\n"
+            f"📦 **تفاصيل الخدمة وحساب الأرباح المطبقة:**\n"
+            f"• رقم الخدمة: `{prod_id}`\n"
+            f"• السعر الكلي المحسوب (بالإرباح): **{prod_price} ليرة سورية**\n\n"
+            f"الرجاء التواصل مع العميل لتنفيذ وشحن الطلب يدوياً."
+        )
+        try: bot.send_message(ADMIN_CHAT_ID, admin_order_msg, parse_mode="Markdown")
+        except Exception as e: logger.error(f"Error sending order to admin: {e}")
+
+    # تصفح قسم الصرافة الذكي للـ USDT
     elif call.data == "trade_usdt_main":
         if get_setting("bot_status") == "OFF":
             markup = types.InlineKeyboardMarkup()
@@ -284,11 +349,12 @@ def handle_query(call):
         else:
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ القائمة الرئيسية لمتجر سوريا المطور متاح أمامك الآن:", reply_markup=markup)
 
-# 8. إدارة الرسائل وحساب العمولات
+# 8. إدارة استقبال الرسائل النصية وحساب العمولات
 @bot.message_handler(func=lambda message: True)
 def handle_text_messages(message):
     user_id = str(message.from_user.id)
     
+    # استقبال تعديلات الإدارة للقيم والنسب
     if user_id == ADMIN_CHAT_ID and user_id in user_trade_steps and user_trade_steps[user_id].get("state", "").startswith("EDIT_"):
         state = user_trade_steps[user_id]["state"]
         new_value = message.text
@@ -297,6 +363,8 @@ def handle_text_messages(message):
             "EDIT_BUY": "usdt_buy_rate", "EDIT_SELL": "usdt_sell_rate",
             "EDIT_MYCOMM": "my_commission", "EDIT_FEETRC": "network_fee_trc20",
             "EDIT_FEEBEP": "network_fee_bep20", "EDIT_FEETON": "network_fee_ton",
+            "EDIT_PROF3": "store_profit_3", "EDIT_PROF4": "store_profit_4",
+            "EDIT_PROF5": "store_profit_5", "EDIT_PROF6": "store_profit_6",
             "EDIT_HOURS": "work_hours"
         }
         
@@ -307,6 +375,7 @@ def handle_text_messages(message):
         del user_trade_steps[user_id]
         return
 
+    # حساب المعاملة المالية عند إدخال العميل للرصيد المستهدف بالـ USDT
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_AMOUNT":
         amount_text = message.text
         try:
@@ -362,11 +431,11 @@ def handle_text_messages(message):
             f"📥 **الرجاء التحويل الفعلي الآن لعنوان الحساب التالي ومطابقة المبالغ:**\n"
             f"📌 {wallet_title}:\n"
             f"`{target_wallet}`\n\n"
-            f"📸 **الخطوة الأخيرة:** بعد إتمام التحويل المالي الفعلي, يرجى إرسال **صورة إيصال التحويل (Screenshot)** هنا مباشرة لتأكيد طلبك وتمريره لغرفة المراجعة الحية للإدارة."
+            f"📸 **الخطوة الأخيرة:** بعد إتمام التحويل المالي الفعلي، يرجى إرسال **صورة إيصال التحويل (Screenshot)** هنا مباشرة لتأكيد طلبك وتمريره لغرفة المراجعة الحية للإدارة."
         )
         bot.reply_to(message, instruction_msg, parse_mode="Markdown")
 
-# 9. استقبال الإيصال وتوجيهه للأدمن بالعناوين الصحيحة
+# 9. استقبال صورة إيصال التحويل المالي وتمريره للإدارة مع فرز التفاصيل الكاملة
 @bot.message_handler(content_types=['photo'])
 def receive_receipt_photo(message):
     user_id = str(message.from_user.id)
