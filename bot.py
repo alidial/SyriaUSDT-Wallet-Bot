@@ -80,7 +80,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     await update.message.reply_text(
         f"👋 أهلاً بك يا {user_name} في بوت سوريا USDT المطور!\n\n"
-        "تم تحديث طريقة الإقلاع والسيرفر يعمل الآن بأعلى استقرار.",
+        "تم تشغيل السيرفر بنجاح ونظام المحافظ حى ومستقر الآن.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("الدعم الفني", url=SUPPORT_LINK)]
         ])
@@ -107,7 +107,10 @@ async def receive_deposit_receipt(update: Update, context: ContextTypes.DEFAULT_
 async def handle_unexpected_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("يرجى الضغط على /start لإعادة تشغيل البوت واستخدام القائمة.")
 
-# 5. نظام خادم الويب المتوافق مع Render لضمان بقاء السيرفر حياً
+# 5. بناء تطبيق البوت لمرة واحدة فقط لمنع التصادم
+application = Application.builder().token(BOT_TOKEN).build()
+
+# 6. نظام خادم الويب المتوافق مع Render لضمان بقاء السيرفر حياً
 async def handle_render_web_request(request):
     return web.Response(text="Bot is Running Live and Healthy!")
 
@@ -122,10 +125,7 @@ async def start_web_server():
     logger.info(f"Web server successfully started on port {port}")
 
 def main():
-    logger.info("...بدء تشغيل البوت المطور بنظام المحافظ...")
-    
-    # بناء التطبيق بالطريقة الرسمية السليمة
-    application = Application.builder().token(BOT_TOKEN).build()
+    logger.info("... بدء تشغيل البوت المطور بنظام المحافظ ...")
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -145,11 +145,11 @@ def main():
     application.add_handler(CallbackQueryHandler(handle_admin_global_callback, pattern="^wlt_"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unexpected_message))
 
-    # تشغيل سيرفر الويب أولاً ثم إطلاق البوت العادي المستقر
+    # تشغيل سيرفر الويب والبوت معاً في نفس الـ Event Loop دون تعارض
     loop = asyncio.get_event_loop()
     loop.run_until_complete(start_web_server())
     
-    # تشغيل البوت مباشرة عبر run_polling العادية والآمنة
+    # الإقلاع الآمن والمستقر للبوت
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
