@@ -15,16 +15,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والإعدادات الثابتة (محدثة بالكامل)
-# هنا قمنا بوضع التوكن الصحيح الذي قمت بإضافته في الـ Environment بنجاح!
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAFQ7WpXsjYg_RJnHgE82ZU_O-WjXUtUaW8").strip()
+# 2. البيانات الأساسية والإعدادات الثابتة (التوكن النظامي الصحيح 100%)
+BOT_TOKEN = "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA"
 ADMIN_CHAT_ID = "920536751"  
 SUPPORT_LINK = "https://t.me/Syrusdt"
 
 MOUSA_API_TOKEN = "C280gLYN12_xlghy548ztmGu60VUsbHuf6c_6Mwgvpbdvltov3ktxxmDZjHN"
 MOUSA_API_BASE_URL = "https://mousa-card.com/api/v2"
 
-# 🛑 عناوين محافظك الرسمية الجديدة والمعتمدة بنسبة 100%
+# 🛑 عناوين محافظك الرسمية المعتمدة
 MY_WALLETS = {
     "TRC20": "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B",
     "BEP20": "0x6567Dc3Dad882748121d65167977Bc0aB9f87804",
@@ -363,7 +362,7 @@ def handle_text_messages(message):
             f"📥 **الرجاء التحويل الفعلي الآن لعنوان الحساب التالي ومطابقة المبالغ:**\n"
             f"📌 {wallet_title}:\n"
             f"`{target_wallet}`\n\n"
-            f"📸 **الخطوة الأخيرة:** بعد إتمام التحويل المالي الفعلي، يرجى إرسال **صورة إيصال التحويل (Screenshot)** هنا مباشرة لتأكيد طلبك وتمريره لغرفة المراجعة الحية للإدارة."
+            f"📸 **الخطوة الأخيرة:** بعد إتمام التحويل المالي الفعلي, يرجى إرسال **صورة إيصال التحويل (Screenshot)** هنا مباشرة لتأكيد طلبك وتمريره لغرفة المراجعة الحية للإدارة."
         )
         bot.reply_to(message, instruction_msg, parse_mode="Markdown")
 
