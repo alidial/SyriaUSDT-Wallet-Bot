@@ -80,7 +80,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     await update.message.reply_text(
         f"👋 أهلاً بك يا {user_name} في بوت سوريا USDT المطور!\n\n"
-        "تم حل تعارض الـ Polling والسيرفر يعمل الآن بأعلى كفاءة مستمرة.",
+        "تم تحديث طريقة الإقلاع والسيرفر يعمل الآن بأعلى استقرار.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("الدعم الفني", url=SUPPORT_LINK)]
         ])
@@ -105,53 +105,52 @@ async def receive_deposit_receipt(update: Update, context: ContextTypes.DEFAULT_
     pass
 
 async def handle_unexpected_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("عذراً، لم أفهم هذا الأمر. يرجى الضغط على /start لإعادة تشغيل البوت.")
+    await update.message.reply_text("يرجى الضغط على /start لإعادة تشغيل البوت واستخدام القائمة.")
 
-# 5. ربط وبناء تطبيق البوت والـ Handlers
-application = Application.builder().token(BOT_TOKEN).build()
-
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
-    states={
-        WAIT_SEARCH_QUERY: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_query)],
-        WAIT_WALLET_DEPOSIT_AMT: [CallbackQueryHandler(handle_buttons, pattern="^main_menu$")],
-        WAIT_WALLET_DEPOSIT_RE_C: [
-            CallbackQueryHandler(handle_buttons, pattern="^main_menu$"),
-            MessageHandler(filters.PHOTO, receive_deposit_receipt)
-        ]
-    },
-    fallbacks=[CommandHandler("start", start)],
-    per_message=False
-)
-
-application.add_handler(conv_handler)
-application.add_handler(CallbackQueryHandler(handle_admin_global_callback, pattern="^wlt_"))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unexpected_message))
-
-# 6. إعداد خادم الويب (Web Server) المتوافق مع Render لمنع الـ Crash
+# 5. نظام خادم الويب المتوافق مع Render لضمان بقاء السيرفر حياً
 async def handle_render_web_request(request):
     return web.Response(text="Bot is Running Live and Healthy!")
 
-def main():
-    logger.info("...تم إطلاق البوت بالكامل بنظام المحافظ المدمج بنجاح...")
-    
-    # إنشاء خادم ويب مصغر متوافق مع متطلبات Render Web Service
+async def start_web_server():
     app = web.Application()
     app.router.add_get('/', handle_render_web_request)
-    
-    # سحب منفذ الـ PORT المخصص تلقائياً من سيرفر ريندر
+    runner = web.AppRunner(app)
+    await runner.setup()
     port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    logger.info(f"Web server successfully started on port {port}")
+
+def main():
+    logger.info("...بدء تشغيل البوت المطور بنظام المحافظ...")
     
-    # تشغيل محرك البوت داخلياً بشكل غير متزامن (Async)
+    # بناء التطبيق بالطريقة الرسمية السليمة
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            WAIT_SEARCH_QUERY: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_query)],
+            WAIT_WALLET_DEPOSIT_AMT: [CallbackQueryHandler(handle_buttons, pattern="^main_menu$")],
+            WAIT_WALLET_DEPOSIT_RE_C: [
+                CallbackQueryHandler(handle_buttons, pattern="^main_menu$"),
+                MessageHandler(filters.PHOTO, receive_deposit_receipt)
+            ]
+        },
+        fallbacks=[CommandHandler("start", start)],
+        per_message=False
+    )
+
+    application.add_handler(conv_handler)
+    application.add_handler(CallbackQueryHandler(handle_admin_global_callback, pattern="^wlt_"))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unexpected_message))
+
+    # تشغيل سيرفر الويب أولاً ثم إطلاق البوت العادي المستقر
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(application.initialize())
-    loop.run_until_complete(application.start())
+    loop.run_until_complete(start_web_server())
     
-    # الحل السليم: تشغيل الـ Polling من خلال الـ application مباشرة لتجنب خطأ الـ Cleanup
-    loop.create_task(application.start_polling(drop_pending_updates=True))
-    
-    # تشغيل خادم الويب الأساسي لإبقاء الخدمة مستقرة 24 ساعة
-    web.run_app(app, host='0.0.0.0', port=port)
+    # تشغيل البوت مباشرة عبر run_polling العادية والآمنة
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
