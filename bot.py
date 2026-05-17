@@ -15,15 +15,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والإعدادات الثابتة (التوكن النظامي الصحيح مثبت بالمتن)
-BOT_TOKEN = "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA"
-ADMIN_CHAT_ID = "920536751"  
+# 2. جلب التوكن والآيدي الصحيح المعدل بالملي 🎯
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA")
+ADMIN_CHAT_ID = "926536751"  # تم التعديل إلى رقمك الصحيح تماماً هنا ✅
 SUPPORT_LINK = "https://t.me/Syrusdt"
 
 MOUSA_API_TOKEN = "C280gLYN12_xlghy548ztmGu60VUsbHuf6c_6Mwgvpbdvltov3ktxxmDZjHN"
 MOUSA_API_BASE_URL = "https://mousa-card.com/api/v2"
 
-# 🛑 عناوين محافظك الرسمية المعتمدة
+# عناوين محافظك الرسمية المعتمدة
 MY_WALLETS = {
     "TRC20": "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B",
     "BEP20": "0x6567Dc3Dad882748121d65167977Bc0aB9f87804",
@@ -31,6 +31,7 @@ MY_WALLETS = {
     "SHAM_CASH": "7a93267a0832f55f8b35abeaf28f8960"
 }
 
+# تشغيل البوت بالتوكن الصحيح
 bot = telebot.TeleBot(BOT_TOKEN)
 user_trade_steps = {}
 
@@ -76,7 +77,7 @@ def update_setting(key, value):
     conn.commit()
     conn.close()
 
-# 4. حاسبة الأرباح التلقائية للمتجر بناءً على طول خانات السعر المجلوب من موسى كارد
+# 4. حاسبة الأرباح التلقائية للمتجر بناءً على طول الخانات
 def calculate_custom_price(original_price_str):
     try:
         raw_price = float(original_price_str)
@@ -93,7 +94,7 @@ def calculate_custom_price(original_price_str):
     except Exception:
         return original_price_str
 
-# 5. جلب خدمات Mousa Card وتصنيفها ذكياً
+# 5. جلب خدمات Mousa Card وتصنيفها
 def fetch_mousa_products_by_category(category_keyword):
     try:
         headers = {"Authorization": f"Bearer {MOUSA_API_TOKEN}", "Content-Type": "application/json"}
@@ -144,12 +145,10 @@ def admin_panel(message):
         types.InlineKeyboardButton("🌐 عمولة TRC20", callback_data="set_feetrc"),
         types.InlineKeyboardButton("🌐 عمولة BEP20", callback_data="set_feebep"),
         types.InlineKeyboardButton("🌐 عمولة TON", callback_data="set_feeton"),
-        # أزرار تحكم عمولات خانات المتجر
         types.InlineKeyboardButton("🔺 أرباح 3 خانات", callback_data="set_prof3"),
         types.InlineKeyboardButton("🔺 أرباح 4 خانات", callback_data="set_prof4"),
         types.InlineKeyboardButton("🔺 أرباح 5 خانات", callback_data="set_prof5"),
         types.InlineKeyboardButton("🔺 أرباح 6 خانات", callback_data="set_prof6"),
-        
         types.InlineKeyboardButton("⏰ أوقات العمل", callback_data="set_hours"),
         types.InlineKeyboardButton("🟢 تشغيل الصرافة", callback_data="status_ON"),
         types.InlineKeyboardButton("🔴 إيقاف الصرافة", callback_data="status_OFF")
@@ -174,7 +173,7 @@ def admin_panel(message):
     )
     bot.reply_to(message, admin_msg, parse_mode="Markdown", reply_markup=markup)
 
-# 7. واجهات الزبون والقائمة الرئيسية مع الأزرار والرسائل المقسمة
+# 7. القائمة الرئيسية والرسائل المقسمة ومتجر الـ 3 أعمدة
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
@@ -194,7 +193,6 @@ def send_welcome(message):
 def handle_query(call):
     user_id = str(call.from_user.id)
     
-    # معالجة ضغطات أزرار التعديل للإدارة
     if call.data.startswith("set_") and user_id == ADMIN_CHAT_ID:
         setting_type = call.data.split("_")[1]
         user_trade_steps[user_id] = {"state": f"EDIT_{setting_type.upper()}"}
@@ -222,7 +220,6 @@ def handle_query(call):
         admin_panel(call.message)
         return
 
-    # تصفح أقسام المتجر الأساسية
     if call.data == "browse_store":
         markup = types.InlineKeyboardMarkup(row_width=3)
         markup.add(
@@ -231,20 +228,20 @@ def handle_query(call):
             types.InlineKeyboardButton("🌐 VPN", callback_data="prod_vpn")
         )
         markup.add(types.InlineKeyboardButton("🔙 العودة للقائمة الرئيسية", callback_data="main_menu"))
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ يرجى اختيار القسم المراد تصفحه الآن (سيتم تطبيق نسب الحسبة التلقائية):", reply_markup=markup)
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ يرجى اختيار القسم المراد تصفحه الآن:", reply_markup=markup)
         
     elif call.data.startswith("prod_"):
         category = call.data.split("_")[1]
-        bot.answer_callback_query(call.id, "🔄 جاري جلب المنتجات وتطبيق التنسيق الثلاثي الأعمدة...")
+        bot.answer_callback_query(call.id, "🔄 جاري جلب المنتجات وتطبيق التنسيق...")
         products = fetch_mousa_products_by_category(category)
         
         if not products:
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("🔙 العودة للأقسام", callback_data="browse_store"))
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="⚠️ هذا القسم قيد التحديث المؤقت حالياً من المصدر.", reply_markup=markup)
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="⚠️ هذا القسم قيد التحديث المؤقت حالياً.", reply_markup=markup)
             return
             
-        # 🟢 بناء واجهة عرض أزرار المنتجات من 3 أعمدة متناسقة بالكامل
+        # 🟢 بناء واجهة الأزرار بـ 3 أعمدة متناسقة بالكامل للمتجر
         markup = types.InlineKeyboardMarkup(row_width=3)
         btn_list = []
         for prod in products[:12]:
@@ -255,7 +252,7 @@ def handle_query(call):
             markup.add(*btn_list[i:i+3])
             
         markup.add(types.InlineKeyboardButton("🔙 العودة للأقسام", callback_data="browse_store"))
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🎁 المنتجات الحية والخدمات المتاحة بالليرة السورية شاملة الأرباح الفورية (3 أعمدة):", reply_markup=markup)
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🎁 المنتجات والخدمات الحية المتاحة بالليرة السورية شاملة الأرباح (3 أعمدة):", reply_markup=markup)
 
     elif call.data.startswith("sel_"):
         parts = call.data.split("_")
@@ -267,31 +264,28 @@ def handle_query(call):
             types.InlineKeyboardButton("✅ تأكيد الشراء الفوري وإرسال الطلب", callback_data=f"conf_{prod_id}_{prod_price}"),
             types.InlineKeyboardButton("🔙 إلغاء والعودة للقائمة", callback_data="browse_store")
         )
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=f"🛍️ **تأكيد عملية الشراء:**\n\n• معرف خدمة موسى كارد: `{prod_id}`\n• السعر الإجمالي المطلوب دفعه: **{prod_price} ليرة سورية**\n\nعند الضغط على تأكيد، سيتم توجيه طلبك فوراً لغرفة الإدارة المالية.", parse_mode="Markdown", reply_markup=markup)
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=f"🛍️ **تأكيد عملية الشراء:**\n\n• معرف الخدمة: `{prod_id}`\n• السعر الإجمالي المطلوب دفعه: **{prod_price} ليرة سورية**", parse_mode="Markdown", reply_markup=markup)
 
     elif call.data.startswith("conf_"):
         parts = call.data.split("_")
         prod_id = parts[1]
         prod_price = parts[2]
         
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❤️ **تم إرسال طلب الشراء الخاص بك بنجاح إلى الإدارة المالية!**\nسيقوم الدعم الفني بمطابقة الحساب والتواصل معك لتسليم الخدمة فوراً.")
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❤️ **تم إرسال طلب الشراء الخاص بك بنجاح إلى الإدارة المالية!**\nسيقوم الدعم الفني بالتواصل معك لتسليم الخدمة فوراً.")
         
-        # إرسال رسالة منظمة للأدمن بتفاصيل الطلب
         admin_order_msg = (
             f"🛒 **طلب شراء خدمة جديد وارد من متجر موسى كارد!**\n\n"
             f"👤 **بيانات العميل طالب الخدمة:**\n"
             f"• الاسم: {call.from_user.first_name}\n"
             f"• اليوزر: @{call.from_user.username if call.from_user.username else 'لا يوجد'}\n"
             f"• الآيدي: `{user_id}`\n\n"
-            f"📦 **تفاصيل الخدمة وحساب الأرباح المطبقة:**\n"
+            f"📦 **تفاصيل الخدمة وحساب الأرباح:**\n"
             f"• رقم الخدمة: `{prod_id}`\n"
-            f"• السعر الكلي المحسوب (بالإرباح): **{prod_price} ليرة سورية**\n\n"
-            f"الرجاء التواصل مع العميل لتنفيذ وشحن الطلب يدوياً."
+            f"• السعر الكلي المحسوب (بالإرباح): **{prod_price} ليرة سورية**"
         )
         try: bot.send_message(ADMIN_CHAT_ID, admin_order_msg, parse_mode="Markdown")
         except Exception as e: logger.error(f"Error sending order to admin: {e}")
 
-    # تصفح قسم الصرافة الذكي للـ USDT
     elif call.data == "trade_usdt_main":
         if get_setting("bot_status") == "OFF":
             markup = types.InlineKeyboardMarkup()
@@ -326,7 +320,7 @@ def handle_query(call):
             types.InlineKeyboardButton("🔸 BEP20", callback_data="net_BEP20"),
             types.InlineKeyboardButton("💎 TON Network", callback_data="net_TON")
         )
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=f"⚙️ لقد حددت معاملة: **{action_type} USDT**\n\nالآن، يرجى تحديد نوع الشبكة لفرز العمولات ورسوم السحب من المنصة:", parse_mode="Markdown", reply_markup=markup)
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=f"⚙️ لقد حددت معاملة: **{action_type} USDT**\n\nالآن، يرجى تحديد نوع الشبكة لفرز العمولات:", parse_mode="Markdown", reply_markup=markup)
         
     elif call.data.startswith("net_"):
         network = call.data.split("_")[1]
@@ -349,7 +343,7 @@ def handle_query(call):
         else:
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ القائمة الرئيسية لمتجر سوريا المطور متاح أمامك الآن:", reply_markup=markup)
 
-# 8. إدارة استقبال الرسائل النصية وحساب العمولات
+# 8. إدارة استقبال الرسائل النصية وحساب العمولات والنسب المئوية
 @bot.message_handler(func=lambda message: True)
 def handle_text_messages(message):
     user_id = str(message.from_user.id)
@@ -468,7 +462,7 @@ def receive_receipt_photo(message):
             f"• الاسم: {message.from_user.first_name}\n"
             f"• اليوزر: @{message.from_user.username if message.from_user.username else 'لا يوجد'}\n"
             f"• الآيدي: `{user_id}`\n\n"
-            f"⚙️ **تقرير الحسبة والعمولات المستحقة (مؤمن ضد الخسارة):**\n"
+            f"⚙️ **تقرير الحسبة والعمولات المستحقة:**\n"
             f"• المعاملة المتخذة: *{action} USDT*\n"
             f"• الشبكة والمسار: *{network}*\n"
             f"{details_text}\n\n"
