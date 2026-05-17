@@ -119,9 +119,10 @@ def add_to_blacklist(user_id):
     conn.commit()
     conn.close()
 
-# دالة حساب العمولات المحدثة بالكامل (1.10% لجميع الشرائح دون تداخل حسابي)
+# دالة حساب العمولات الموحدة والمحمية من الأخطاء البرمجية لكافة الشبكات والمبالغ
 def calculate_buy_fees(amount, rate):
-    network_fee = amount * 0.0110  # رسوم شبكة النقل والغاز 1.10% حركياً لجميع الشرائح
+    network_fee = amount * 0.0110  # رسوم الشبكة الثابتة 1.10% حركياً لجميع الشرائح
+    tier_fee = 0.0                 # قيمة افتراضية لمنع توقف الكود
     
     if 5 <= amount <= 9:
         tier_fee = 1.0
@@ -138,7 +139,7 @@ def calculate_buy_fees(amount, rate):
     elif 60 <= amount <= 99:
         tier_fee = 3.50
     elif 100 <= amount <= 6000:
-        # تم إصلاح هذه الشريحة لجمع رسوم المنصة (3%) مع رسوم النقل والغاز (1.10%) تلقائياً
+        # شريحة المبالغ الكبيرة (3% رسوم منصة + 1.10% رسوم شبكة)
         total_fee_usdt = (amount * 0.03) + network_fee
         net_amount_usdt = amount - total_fee_usdt
         total_sp_receive = net_amount_usdt * rate
@@ -146,6 +147,7 @@ def calculate_buy_fees(amount, rate):
     else:
         return 0, 0, 0, 0
         
+    # المبالغ الأقل من 100 تمر من هنا بنجاح دون أي نقص في المتغيرات
     total_fee_usdt = tier_fee + network_fee
     net_amount_usdt = amount - total_fee_usdt
     total_sp_receive = net_amount_usdt * rate
