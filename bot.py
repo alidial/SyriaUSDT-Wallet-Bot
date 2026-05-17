@@ -8,34 +8,34 @@ from aiohttp import web
 import asyncio
 import requests
 
-# 1. إعداد السجلات (Logs) لمراقبة الاتصال
+# 1. إعداد السجلات (Logs)
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والإعدادات الثابتة (التوكن الجديد مدمج بشكل مباشر وصارم)
-# التوكن الجديد مدمج هنا كقيمة افتراضية ثابتة لمنع المنصة من استخدام التوكن القديم
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA").strip()
-ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "920536751").strip()
-SUPPORT_LINK = os.environ.get("SUPPORT_LINK", "https://t.me/Syrusdt").strip()
+# 2. البيانات الأساسية والإعدادات الثابتة
+# التعديل الحاسم هنا: الكود سيقوم بسحب التوكن الصحيح الحقيقي من لوحة تحكم Render أولاً
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAFQ7WpXsjYg_RJnHgE82ZU_O-WjXUtUaW8").strip()
+ADMIN_CHAT_ID = "920536751"  
+SUPPORT_LINK = "https://t.me/Syrusdt"
 
-MOUSA_API_TOKEN = os.environ.get("MOUSA_API_TOKEN", "C280gLYN12_xlghy548ztmGu60VUsbHuf6c_6Mwgvpbdvltov3ktxxmDZjHN").strip()
-MOUSA_API_BASE_URL = os.environ.get("MOUSA_API_BASE_URL", "https://mousa-card.com/api/v2").strip()
+MOUSA_API_TOKEN = "C280gLYN12_xlghy548ztmGu60VUsbHuf6c_6Mwgvpbdvltov3ktxxmDZjHN"
+MOUSA_API_BASE_URL = "https://mousa-card.com/api/v2"
 
-# عناوين المحافظ الرسمية والمعتمدة بنسبة 100%
+# 🛑 عناوين محافظك الرسمية الجديدة والمعتمدة بنسبة 100%
 MY_WALLETS = {
-    "TRC20": os.environ.get("WALLET_TRC20", "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B").strip(),
-    "BEP20": os.environ.get("WALLET_BEP20", "0x6567Dc3Dad882748121d65167977Bc0aB9f87804").strip(),
-    "TON": os.environ.get("WALLET_TON", "UQDbXMU9L45iztaFrwQdXMMqd6pMjsDPma4Jba_pWTRnSfEa").strip(),
-    "SHAM_CASH": os.environ.get("WALLET_SHAM_CASH", "7a93267a0832f55f8b35abeaf28f8960").strip()
+    "TRC20": "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B",
+    "BEP20": "0x6567Dc3Dad882748121d65167977Bc0aB9f87804",
+    "TON": "UQDbXMU9L45iztaFrwQdXMMqd6pMjsDPma4Jba_pWTRnSfEa",
+    "SHAM_CASH": "7a93267a0832f55f8b35abeaf28f8960"
 }
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_trade_steps = {}
 
-# 3. تهيئة قاعدة البيانات المحلية للأقسام والأسعار
+# 3. تهيئة قاعدة البيانات
 def init_db():
     conn = sqlite3.connect('store.db')
     cursor = conn.cursor()
@@ -69,7 +69,7 @@ def update_setting(key, value):
     conn.commit()
     conn.close()
 
-# 4. حاسبة الأرباح التلقائية للمتجر (حسب طول خانات الرقم لضمان الربح الحقيقي)
+# 4. حاسبة الأرباح التلقائية للمتجر (حسب طول الرقم)
 def calculate_custom_price(original_price_str):
     try:
         raw_price = float(original_price_str)
@@ -86,7 +86,7 @@ def calculate_custom_price(original_price_str):
     except Exception:
         return original_price_str
 
-# 5. جلب خدمات Mousa Card مع تحسين الفلترة الذكية والخيار الاحتياطي السحابي
+# 5. جلب خدمات Mousa Card مع تحسين الفلترة الذكية والخيار الاحتياطي
 def fetch_mousa_products_by_category(category_keyword):
     try:
         headers = {"Authorization": f"Bearer {MOUSA_API_TOKEN}", "Content-Type": "application/json"}
@@ -122,7 +122,7 @@ def fetch_mousa_products_by_category(category_keyword):
         logger.error(f"❌ خطأ أثناء الاتصال بـ Mousa Card API: {e}")
         return []
 
-# 6. لوحة تحكم الأدمن والتحكم الفوري بالأسعار والعمولات والتشغيل (/admin)
+# 6. لوحة تحكم الأدمن (/admin)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if str(message.from_user.id) != ADMIN_CHAT_ID:
@@ -132,7 +132,7 @@ def admin_panel(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("💵 سعر الشراء الخام", callback_data="set_buy"),
-        types.InlineKeyboardButton("💵 سعر Mبيع الخام", callback_data="set_sell"),
+        types.InlineKeyboardButton("💵 سعر المبيع الخام", callback_data="set_sell"),
         types.InlineKeyboardButton("💰 عمولتك بالليرة", callback_data="set_mycomm"),
         types.InlineKeyboardButton("🌐 عمولة منصة TRC20", callback_data="set_feetrc"),
         types.InlineKeyboardButton("🌐 عمولة منصة BEP20", callback_data="set_feebep"),
@@ -157,7 +157,7 @@ def admin_panel(message):
     )
     bot.reply_to(message, admin_msg, parse_mode="Markdown", reply_markup=markup)
 
-# 7. واجهات الزبون والقائمة الرئيسية للبوت
+# 7. واجهات الزبون والقائمة الرئيسية
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
@@ -280,12 +280,12 @@ def handle_query(call):
             types.InlineKeyboardButton("💰 شحن محفظة البوت (Sham Cash)", callback_data="deposit_wallet")
         )
         if call.data == "deposit_wallet":
-            deposit_text = f"💰 **شحن محفظة المتجر المحلية عن طريق (Sham Cash)**\n\n📌 **رقم حساب Sham Cash الرسمي والمعتمد للمتجر:**\n`{MY_WALLETS['SHAM_CASH']}`\n\nيرجى تحويل الرصيد المطلوب، ثم أرسل لقطة شاشة للوصل المالي للدعم الفني لتفعيل حسابك فوراً."
+            deposit_text = f"💰 **شحن محفظة المتجر المحلية عن طريق (Sham Cash)**\n\n📌 **رقم حساب Sham Cash الرسمي والمعتمد للمتجر:**\n`7a93267a0832f55f8b35abeaf28f8960`\n\nيرجى تحويل الرصيد المطلوب، ثم أرسل لقطة شاشة للوصل المالي للدعم الفني لتفعيل حسابك فوراً."
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=deposit_text, parse_mode="Markdown", reply_markup=markup)
         else:
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ القائمة الرئيسية لمتجر سوريا المطور متاح أمامك الآن:", reply_markup=markup)
 
-# 8. إدارة الرسائل وحساب العمولات الشبكية لحماية رأس المال
+# 8. إدارة الرسائل وحساب العمولات
 @bot.message_handler(func=lambda message: True)
 def handle_text_messages(message):
     user_id = str(message.from_user.id)
@@ -341,7 +341,7 @@ def handle_text_messages(message):
                 f"• إجمالي الكمية المطلوب دفع قيمتها: `{total_usdt_needed} USDT`\n"
                 f"🔥 **الصافي المطلوب تحويله عبر شام كاش:** **{total_syp:,.0f} ليرة سورية**"
             )
-            target_wallet = MY_WALLETS["SHAM_CASH"]
+            target_wallet = "7a93267a0832f55f8b35abeaf28f8960"
             wallet_title = "حساب Sham Cash السوري المعتمد للمتجر"
         else:
             total_syp = amount * sell_rate
@@ -351,6 +351,12 @@ def handle_text_messages(message):
                 f"🔥 **المبلغ النهائي الذي ستستلمه كاش:** **{total_syp:,.0f} ليرة سورية**\n"
                 f"⚠️ *ملاحظة: تأكد من إرسال الكمية كاملة لكي تصل صافية لمحفظتنا.*"
             )
+            # جلب المحفظة المناسبة ديناميكياً لتفادي أي خطأ
+            MY_WALLETS = {
+                "TRC20": "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B",
+                "BEP20": "0x6567Dc3Dad882748121d65167977Bc0aB9f87804",
+                "TON": "UQDbXMU9L45iztaFrwQdXMMqd6pMjsDPma4Jba_pWTRnSfEa"
+            }
             target_wallet = MY_WALLETS.get(network, "غير متوفر")
             wallet_title = f"عنوان محفظة USDT الرسمية لشبكة ({network})"
             
@@ -367,7 +373,7 @@ def handle_text_messages(message):
         )
         bot.reply_to(message, instruction_msg, parse_mode="Markdown")
 
-# 9. استقبال الإيصالات وتوجيه التقارير لغرفة الإدارة العليا
+# 9. استقبال الإيصال وتوجيهه للأدمن والعناوين الصحيحة
 @bot.message_handler(content_types=['photo'])
 def receive_receipt_photo(message):
     user_id = str(message.from_user.id)
@@ -406,13 +412,13 @@ def receive_receipt_photo(message):
             f"{details_text}\n\n"
             f"👇 صورة الإيصال أو الوصل المرفق للمطابقة الحية اليدوية:"
         )
-        try: bot.send_photo(ADMIN_CHAT_ID, photo_file_id, caption=admin_report_text, parse_mode="Markdown")
+        try: bot.send_photo("920536751", photo_file_id, caption=admin_report_text, parse_mode="Markdown")
         except Exception as e: logger.error(f"❌ خطأ في تحويل الإيصال للأدمن: {e}")
         del user_trade_steps[user_id]
 
-# 10. خادم ويب مدمج للبقاء حياً 24/7 دون توقف على سحابة Render
+# 10. خادم ويب لـ Render
 async def handle_render_web_request(request):
-    return web.Response(text="Syria Anti-Loss Exchange Bot Core Operating Smoothly with Fresh Active Token!")
+    return web.Response(text="Syria Anti-Loss Exchange Bot Core Operating Smoothly!")
 
 def start_isolated_web_server():
     loop = asyncio.new_event_loop()
