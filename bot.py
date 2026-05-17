@@ -32,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     await update.message.reply_text(
         f"👋 أهلاً بك يا {user_name} في بوت سوريا USDT المطور!\n\n"
-        "السيرفر يعمل الآن بأعلى استقرار وبنظام الخيوط المنفصلة.",
+        "السيرفر يعمل الآن بأعلى استقرار على بيئة بايثون القياسية.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("الدعم الفني", url=SUPPORT_LINK)]
         ])
@@ -48,12 +48,11 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_unexpected_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("يرجى إرسال /start لتشغيل البوت.")
 
-# 4. إعداد خادم الويب وجعله يعمل في الخيط المنفصل
+# 4. إعداد خادم الويب في خيط منفصل
 async def handle_render_web_request(request):
     return web.Response(text="Bot Service is Active and Running!")
 
 def start_web_server_thread():
-    # إنشاء الـ Loop الخاص بالخيط المنفصل
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
@@ -74,11 +73,11 @@ def start_web_server_thread():
 def main():
     logger.info("--- جاري إقلاع نظام البوت المعزول ---")
     
-    # تشغيل سيرفر الويب في خلفية النظام (Thread منفصل) لتلبية متطلبات Render فوراً
+    # تشغيل سيرفر الويب في خلفية النظام لتلبية متطلبات Render فوراً
     web_thread = threading.Thread(target=start_web_server_thread, daemon=True)
     web_thread.start()
     
-    # بناء البوت بالطريقة الرسمية القياسية المستقرة
+    # بناء البوت بالطريقة الرسمية القياسية
     application = Application.builder().token(BOT_TOKEN).build()
 
     # ربط الـ Handlers
@@ -96,8 +95,8 @@ def main():
     application.add_handler(conv_handler)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unexpected_message))
 
-    # تشغيل البوت بسحب التحديثات المستقر والآمن تماماً
-    logger.info("--- تم إطلاق البوت بنجاح تام وبدون أي تعارض ---")
+    # تشغيل البوت بسحب التحديثات المستقر
+    logger.info("--- تم إطلاق البوت بنجاح تام وبدون أي تعارض بيئي ---")
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
