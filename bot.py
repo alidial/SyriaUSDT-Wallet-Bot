@@ -119,9 +119,10 @@ def add_to_blacklist(user_id):
     conn.commit()
     conn.close()
 
-# دالة حساب العمولات لشريحة بيع الـ USDT المعتمدة
+# دالة حساب العمولات لشريحة بيع الـ USDT المعتمدة (مع رسوم النقل والغاز 1.10%)
 def calculate_buy_fees(amount, rate):
-    network_fee = 1.0
+    network_fee = amount * 0.0110  # رسوم شبكة النقل والغاز 1.10% حركياً من إجمالي المبلغ
+    
     if 5 <= amount <= 9:
         tier_fee = 1.0
     elif 10 <= amount <= 19:
@@ -159,10 +160,10 @@ def admin_panel(message):
         
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("📊 تعديل سعر الشراء", callback_data="adm_set_buy"),
-        types.InlineKeyboardButton("📊 تعديل سعر المبيع", callback_data="adm_set_sell"),
+        types.InlineKeyboardButton("💵 تعديل سعر الشراء", callback_data="adm_set_buy"),
+        types.InlineKeyboardButton("💰 تعديل سعر المبيع", callback_data="adm_set_sell"),
         types.InlineKeyboardButton("📢 إرسال رسالة جماعية", callback_data="adm_broadcast"),
-        types.InlineKeyboardButton("📈 عرض إحصائيات المنصة", callback_data="adm_view_stats"),
+        types.InlineKeyboardButton("📊 عرض إحصائيات المنصة", callback_data="adm_view_stats"),
         types.InlineKeyboardButton("🟢 وضع النشاط", callback_data="adm_status_ON"),
         types.InlineKeyboardButton("🟡 وضع الاستراحة", callback_data="adm_status_REST"),
         types.InlineKeyboardButton("🔴 وضع الإغلاق", callback_data="adm_status_OFF")
@@ -196,11 +197,11 @@ def send_welcome(message):
     
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("🔄 قسم الصرافة والمبادلة الآلية", callback_data="usr_trade_main")
+        types.InlineKeyboardButton("⚡ دخول قسم الصرافة والمبادلة الآلية ⚡", callback_data="usr_trade_main")
     )
     markup.row(
         types.InlineKeyboardButton("📞 الدعم الفني المباشر", callback_data="usr_support_main"),
-        types.InlineKeyboardButton("🔄 إعادة تنشيط النظام", callback_data="usr_restart")
+        types.InlineKeyboardButton("🔄 تنشيط النظام", callback_data="usr_restart")
     )
     
     welcome_text = (
@@ -276,11 +277,11 @@ def handle_query(call):
         markup.add(
             types.InlineKeyboardButton("📈 شراء USDT من المنصة", callback_data="usr_action_buy"),
             types.InlineKeyboardButton("📉 بيع USDT إلى المنصة", callback_data="usr_action_sell"),
-            types.InlineKeyboardButton("💱 طلب عملات رقمية أخرى", callback_data="usr_action_other")
+            types.InlineKeyboardButton("✨💱 طلب عملات رقمية أخرى", callback_data="usr_action_other")
         )
         markup.row(
-            types.InlineKeyboardButton("🔙 العودة للقائمة الرئيسية", callback_data="usr_restart"),
-            types.InlineKeyboardButton("🔄 تحديث النشرة الفورية", callback_data="usr_trade_main")
+            types.InlineKeyboardButton("🔙 العودة للقائمة", callback_data="usr_restart"),
+            types.InlineKeyboardButton("🔄 تحديث الأسعار الفورية", callback_data="usr_trade_main")
         )
         
         buy_rate = get_setting("usdt_buy_rate")
@@ -295,7 +296,6 @@ def handle_query(call):
         bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=info_text, parse_mode="Markdown", reply_markup=markup)
         return
 
-    # معالجة زر طلب العملات الأخرى
     if call.data == "usr_action_other":
         user_trade_steps[user_id] = {"action": "other", "state": "WAIT_OTHER_COIN_DETAILS"}
         markup = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 إلغاء والعودة", callback_data="usr_trade_main"))
@@ -311,14 +311,12 @@ def handle_query(call):
         bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=prompt_msg, parse_mode="Markdown", reply_markup=markup)
         return
 
-    # معالجة تأكيد طلب العملة الأخرى
     if call.data == "usr_confirm_other_coin":
         if user_id in user_trade_steps and "coin_details" in user_trade_steps[user_id]:
             details = user_trade_steps[user_id]["coin_details"]
             
-            # إخطار المسؤول (الأدمن) بالطلب لتحديد السعر والرد المباشر
             adm_markup = types.InlineKeyboardMarkup().add(
-                types.InlineKeyboardButton("💱 الرد وتوفير السعر للعميل", callback_data=f"adm_coin_price_reply_{user_id}")
+                types.InlineKeyboardButton("💵 الرد وتوفير السعر للعميل", callback_data=f"adm_coin_price_reply_{user_id}")
             )
             admin_notif = (
                 f"🚨 **طلب تسعير عملات أخرى وارد حالاً:**\n\n"
@@ -328,7 +326,6 @@ def handle_query(call):
             )
             bot.send_message(ADMIN_CHAT_ID, admin_notif, parse_mode="Markdown", reply_markup=adm_markup)
             
-            # تأكيد للعميل
             success_text = (
                 f"✅ **تم إرسال طلب التوثيق والتسعير بنجاح:**\n\n"
                 f"أخي الكريم، تم رفع تفاصيل طلبكم إلى القسم المالي المختص. جاري حالياً احتساب السعر المباشر بدقة وتجهيز الشروط المناسبة لطلبكم.\n\n"
@@ -338,21 +335,17 @@ def handle_query(call):
             del user_trade_steps[user_id]
         return
 
-    # معالجة ضغط الأدمن على زر تسعير العملة البديلة
     if call.data.startswith("adm_coin_price_reply_") and user_id == ADMIN_CHAT_ID:
         target_user_id = call.data.split("_")[4]
         admin_responses[ADMIN_CHAT_ID] = {"action": "WAIT_COIN_PRICE_TEXT", "target_user": target_user_id}
         bot.send_message(ADMIN_CHAT_ID, f"📥 يرجى كتابة السعر المقدر مع عنوان المحفظة والشبكة المطلوبة لإرسالها للمستخدم `{target_user_id}` حالياً:")
         return
 
-    # معالجة رد العميل بـ [موافق] على السعر المرسل من الإدارة
     if call.data.startswith("usr_coin_deal_accept_"):
-        # تحويل حالة العميل إلى انتظار عنوان شام كاش
         user_trade_steps[user_id] = {"state": "WAIT_FOR_SHAM_CASH_MANUAL"}
         bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="📥 **تم قبول السعر بنجاح.**\n\nيرجى تزويدنا الآن بـ **عنوان حساب شام كاش الخاص بكم** نصياً هنا في حقل الكتابة مباشرة، ليتسنى لنا إتمام المعاملة المالية وفق الاتفاق:")
         return
 
-    # معالجة رد العميل بـ [إلغاء] على السعر المرسل من الإدارة
     if call.data == "usr_coin_deal_cancel":
         if user_id in user_trade_steps:
             del user_trade_steps[user_id]
@@ -371,7 +364,7 @@ def handle_query(call):
             types.InlineKeyboardButton("🌐 شبكة BEP20", callback_data="usr_net_BEP20")
         )
         markup.row(
-            types.InlineKeyboardButton("🔙 رجوع للخلف", callback_data="usr_trade_main"),
+            types.InlineKeyboardButton("🔙 رجوع", callback_data="usr_trade_main"),
             types.InlineKeyboardButton("🔄 إعادة تعيين", callback_data="usr_restart")
         )
         bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="⚙️ يرجى تحديد شبكة وقناة النقل الرقمي المطلوبة لمتابعة احتساب الرسوم والعمولات بدقة متناهية:", reply_markup=markup)
@@ -384,10 +377,10 @@ def handle_query(call):
             user_trade_steps[user_id]["state"] = "WAIT_AMOUNT"
             
             markup = types.InlineKeyboardMarkup().add(
-                types.InlineKeyboardButton("🔙 رجوع للخلف", callback_data=f"usr_action_{user_trade_steps[user_id]['action']}"),
+                types.InlineKeyboardButton("🔙 رجوع", callback_data=f"usr_action_{user_trade_steps[user_id]['action']}"),
                 types.InlineKeyboardButton("🔄 إعادة تعيين", callback_data="usr_restart")
             )
-            bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="🔢 **يرجى إدخال القيمة المالية المطلوبة بعملة الـ USDT**\n(يرجى كتابة أرقام فقط، الحد الأدنى المسموح به هو 5 USDT، مثال: 50):", parse_mode="Markdown", reply_markup=markup)
+            bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="🔢 **يرجى إدخال القيمة المالية المطلوبة بعملة الـ USDT**\n(يرجى كتابة أرقام فقط، الحد الأدنى المسميت به هو 5 USDT، مثال: 50):", parse_mode="Markdown", reply_markup=markup)
         return
 
     if call.data == "usr_confirm_wallet":
@@ -412,10 +405,10 @@ def handle_query(call):
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("💬 تواصل مباشر عبر التلغرام", url=SUPPORT_LINK),
-            types.InlineKeyboardButton("📩 فتح تذكرة دعم فني داخلية", callback_data="usr_open_ticket_local")
+            types.InlineKeyboardButton("📩 فتح تذكرة دعم داخلية", callback_data="usr_open_ticket_local")
         )
         markup.row(
-            types.InlineKeyboardButton("🔙 رجوع للخلف", callback_data="usr_restart"),
+            types.InlineKeyboardButton("🔙 رجوع", callback_data="usr_restart"),
             types.InlineKeyboardButton("🔄 إعادة تعيين", callback_data="usr_restart")
         )
         
@@ -511,12 +504,11 @@ def handle_text_messages(message):
             adm_action = admin_responses[user_id]["action"]
             target = admin_responses[user_id]["target_user"]
             
-            # معالجة إرسال السعر والتفاصيل من الأدمن إلى العميل بخصوص العملات الأخرى
             if adm_action == "WAIT_COIN_PRICE_TEXT":
                 markup = types.InlineKeyboardMarkup(row_width=2)
                 markup.add(
-                    types.InlineKeyboardButton("✅ موافق", callback_data=f"usr_coin_deal_accept_{target}"),
-                    types.InlineKeyboardButton("❌ إلغاء", callback_data="usr_coin_deal_cancel")
+                    types.InlineKeyboardButton("✅ موافق وأرغب بالتنفيذ", callback_data=f"usr_coin_deal_accept_{target}"),
+                    types.InlineKeyboardButton("❌ إلغاء الطلب والتراجع", callback_data="usr_coin_deal_cancel")
                 )
                 
                 offer_msg = (
@@ -553,7 +545,6 @@ def handle_text_messages(message):
     if is_blacklisted(user_id):
         return
 
-    # استقبال تفاصيل العملة الأخرى من العميل لمراجعتها وتأكيدها قبل الإرسال للأدمن
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_OTHER_COIN_DETAILS":
         user_trade_steps[user_id]["coin_details"] = text
         
@@ -571,7 +562,6 @@ def handle_text_messages(message):
         bot.send_message(message.chat.id, confirm_text, parse_mode="Markdown", reply_markup=markup)
         return
 
-    # استقبال حساب شام كاش اليدوي بعد موافقة العميل على سعر العملات الأخرى
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_FOR_SHAM_CASH_MANUAL":
         wait_text = (
             "✅ **إشعار منظومة الصرف والتوثيق المالي للعملات البديلة:**\n\n"
@@ -590,7 +580,6 @@ def handle_text_messages(message):
         del user_trade_steps[user_id]
         return
 
-    # استقبال حساب شام كاش الموجه من العميل في خطوة البيع الرسمية للـ USDT المعتاد
     if text.isalnum() and len(text) > 20 and user_id not in user_trade_steps:
         wait_text = (
             "✅ **إشعار منظومة الصرف والتوثيق مالي:**\n\n"
@@ -607,13 +596,12 @@ def handle_text_messages(message):
         bot.send_message(ADMIN_CHAT_ID, notification, parse_mode="Markdown")
         return
 
-    # مسار استلام محفظة استلام الـ USDT الموجهة من العميل في خطوة الشراء 
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_BUY_WALLET":
         user_trade_steps[user_id]["user_wallet"] = text
         
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("✅ نعم، المحفظة صحيحة تماماً ومتأكد", callback_data="usr_confirm_wallet"))
-        markup.add(types.InlineKeyboardButton("🔄 إعادة إدخال المحفظة وتصحيحها", callback_data=f"usr_net_{user_trade_steps[user_id]['network']}"))
+        markup.add(types.InlineKeyboardButton("✅ نعم، المحفظة صحيحة تماماً", callback_data="usr_confirm_wallet"))
+        markup.add(types.InlineKeyboardButton("🔄 تصحيح المحفظة وإعادة إدخالها", callback_data=f"usr_net_{user_trade_steps[user_id]['network']}"))
         
         confirm_text = (
             f"🛡️ **مراجعة وتأكيد أمان عنوان الاستلام:**\n\n"
@@ -625,7 +613,6 @@ def handle_text_messages(message):
         bot.send_message(message.chat.id, confirm_text, parse_mode="Markdown", reply_markup=markup)
         return
 
-    # حاسبة التدفق المالي والشرائح المحددة حركياً من العملاء للـ USDT
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_AMOUNT":
         try:
             amount = float(text)
@@ -634,7 +621,7 @@ def handle_text_messages(message):
             
             if amount < 5.0 or (action == "sell" and amount > 6000.0):
                 markup = types.InlineKeyboardMarkup().add(
-                    types.InlineKeyboardButton("🔙 رجوع وتعديل", callback_data=f"usr_net_{network}"),
+                    types.InlineKeyboardButton("🔙 رجوع وتعديل المبلغ", callback_data=f"usr_net_{network}"),
                     types.InlineKeyboardButton("🔄 إعادة تعيين", callback_data="usr_restart")
                 )
                 bot.reply_to(message, "❌ **خطأ تنظيمي:** الحد الأدنى لإجراء المعاملات هو **5 USDT**، والحد الأعلى لشرائح البيع الحالية هو **6000 USDT**. يرجى إدخال قيمة مطابقة للشرائح الرسمية المدعومة.", reply_markup=markup)
@@ -665,13 +652,13 @@ def handle_text_messages(message):
                 
                 summary_text = (
                     f"📋 **الفاتورة المالية الرسمية - أمر بيع USDT:**\n\n"
-                    f"⏳ **مؤقت صلاحية الفاتورة وثبات السعر:** تظل صلاحية هذه الفاتورة سارية لمدة **15 دقيقة فقط** نظراً لتقلبات أسعار الصرف الرقمية.\n\n"
+                    f"⏳ **مؤقت صلاحية الفاتورة وثبات السعر:** تظل صلاحية هذه الفاتورة سارية لمدة **15 دقيقة فقط** نظراً لتقلبات أسعار الصخر الرقمية.\n\n"
                     f"• **الكمية المرسلة من قِبلك:** `{amount}` USDT\n"
                     f"• **شبكة وقناة النقل الرقمية:** `{network}`\n"
                     f"• **سعر الصرف المعتمد حالياً:** `{rate:,}` ل.س لكل دولار\n\n"
                     f"➖ **الخصومات المقتطعة لتغطية التكاليف:**\n"
                     f"• رسوم الشريحة الحركية الثابتة: {fee_display}\n"
-                    f"• رسوم شبكة النقل والغاز الموحدة ($+1$): `{network_fee}` USDT\n"
+                    f"• رسوم شبكة النقل والغاز الموحدة (1.10%): `{network_fee:.2f}` USDT\n"
                     f"• إجمالي العمولات المخصومة: `{total_fee_usdt:.2f}` USDT\n"
                     f"• صافي الكمية المحسوبة لكم: `{amount - total_fee_usdt:.2f}` USDT\n\n"
                     f"💰 **المبلغ الصافي النهائي الذي ستستلمه بالليرة السورية:**\n"
