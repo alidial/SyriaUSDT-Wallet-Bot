@@ -16,12 +16,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 2. جلب التوكن والآيدي الصحيح المعتمد 🎯
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA")
+# 🟢 تم تركيب توكن تليجرام الجديد كلياً هنا بنجاح لإنهاء التعارض:
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAF0SivQS_NiDcPaYiZFrt1p0Ep_T13lJTw")
 ADMIN_CHAT_ID = "926536751"  # الآيدي الصحيح الخاص بك بالملي ✅
 SUPPORT_LINK = "https://t.me/Syrusdt"
 
-# 🟢 تم تركيب توكن موسى كارد المكتمل والجديد كلياً هنا بنجاح:
-MOUSA_API_TOKEN = "C2BBglYMi2_xlgNy548z6MGu5OwQVUsbHuF6c_6PWgvp6bvdItov3ktXxxmQ2jHN"
+# توكن موسى كارد المعتمد والجديد الخاص بك:
+MOUSA_API_TOKEN = "K6ZRGXAYGsw6WYJJFwJA91yci5dqTjg7b7sc8hEjLruWihH9uNUFokX0dW3PWtqX"
 MOUSA_API_BASE_URL = "https://mousa-card.com/api/v2"
 
 # عناوين محافظك الرسمية المعتمدة
@@ -121,7 +122,7 @@ def fetch_mousa_products_by_category(category_keyword):
                     if any(k in full_text for k in ["vpn", "بروكسي", "حظر", "proxy", "nord", "express"]):
                         filtered_products.append(service)
             
-            # إذا تعذر العثور على كلمات الفرز المباشر، يعرض أول 12 خدمة نشطة في حسابك كدعم احتياطي تلقائي
+            # إذا تعذر العثور على فرز دقيق، يتم جلب أول 12 خدمة كدعم احتياطي تلقائي
             if not filtered_products and all_services:
                 return all_services[:12]
                 
@@ -423,7 +424,7 @@ def handle_text_messages(message):
             f"📥 **الرجاء التحويل الفعلي الآن لعنوان الحساب التالي ومطابقة المبالغ:**\n"
             f"📌 {wallet_title}:\n"
             f"`{target_wallet}`\n\n"
-            f"📸 **الخطوة الأخيرة:** بعد إتمام التحويل المالي الفعلي، يرجى إرسال **صورة إيصال التحويل (Screenshot)** هنا مباشرة لتأكيد طلبك وتمريره لغرفة المراجعة الحية للإدارة."
+            f"📸 **الخطوة الأخيرة:** بعد إتمام التحويل المالي الفعلي, يرجى إرسال **صورة إيصال التحويل (Screenshot)** هنا مباشرة لتأكيد طلبك وتمريره لغرفة المراجعة الحية للإدارة."
         )
         bot.reply_to(message, instruction_msg, parse_mode="Markdown")
 
