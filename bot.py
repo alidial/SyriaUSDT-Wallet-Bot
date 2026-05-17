@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والمحافظ الثابتة للمؤسسة 🔐 (مراجعة ومطابقة 100%)
+# 2. البيانات الأساسية والمحافظ الثابتة للمؤسسة 🔐 (مطابقة ومؤكدة 100%)
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAF0SivQS_NiDcPaYiZFrt1p0Ep_T13lJTw")
 ADMIN_CHAT_ID = "926536751"  # معرّف التلغرام الخاص بك المعتمد للإدارة
 
@@ -33,7 +33,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 user_trade_steps = {}
 admin_responses = {}
 
-# 3. تهيئة وتحديث قاعدة البيانات المحلية (SQLite)
+# 3. تهيئة قاعدة البيانات المحلية (SQLite) وتثبيت السعر والعمولات الافتراضية
 def init_db():
     conn = sqlite3.connect('store.db')
     cursor = conn.cursor()
@@ -41,13 +41,12 @@ def init_db():
     cursor.execute('CREATE TABLE IF NOT EXISTS blacklist (user_id TEXT PRIMARY KEY)')
     cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY)')
     
-    # الإعدادات المالية والتنظيمية الافتراضية
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_buy_rate', '15000')") 
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_sell_rate', '15500')") 
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('combined_fee_rate', '2.5')") 
+    # تثبيت القيم المعتمدة حركياً بناءً على رؤيتك التجارية وسعر المنصة الحالي
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_buy_rate', '13600')") 
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_sell_rate', '14000')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('bot_status', 'ON')") 
     
-    # تحديث آيدي الأدمن تلقائياً لضمان الصلاحيات الفورية ومنع التعليق
+    # ربط صلاحية الأدمن بمعرفك الإداري الثابت لمنع التعليق
     cursor.execute("INSERT OR REPLACE INTO settings VALUES ('admin_id', ?)", (ADMIN_CHAT_ID,))
     
     conn.commit()
@@ -98,6 +97,38 @@ def add_to_blacklist(user_id):
     conn.commit()
     conn.close()
 
+# دالة حساب العمولات الديناميكية بناءً على شرائح العميل المعتمدة (مع إضافة 1$ ثابت لعمولة الشبكة)
+def calculate_buy_fees(amount, rate):
+    network_fee = 1.0 # عمولة الشبكة الثابتة والموحدة لحمايتك
+    
+    if 5 <= amount <= 9:
+        tier_fee = 1.0
+    elif 10 <= amount <= 19:
+        tier_fee = 1.80
+    elif 20 <= amount <= 29:
+        tier_fee = 1.90
+    elif 30 <= amount <= 39:
+        tier_fee = 1.95
+    elif 40 <= amount <= 49:
+        tier_fee = 1.99
+    elif 50 <= amount <= 59:
+        tier_fee = 2.0
+    elif 60 <= amount <= 99:
+        tier_fee = 3.0
+    elif amount >= 100:
+        # شريحة المبالغ الكبيرة (4% نسبة مئوية + 1$ عمولة الشبكة)
+        total_fee_usdt = (amount * 0.04) + network_fee
+        net_amount_usdt = amount - total_fee_usdt
+        total_sp_receive = net_amount_usdt * rate
+        return 4.0, network_fee, total_fee_usdt, int(total_sp_receive)
+    else:
+        return 0, 0, 0, 0 # كمية أقل من الحد الأدنى
+        
+    total_fee_usdt = tier_fee + network_fee
+    net_amount_usdt = amount - total_fee_usdt
+    total_sp_receive = net_amount_usdt * rate
+    return tier_fee, network_fee, total_fee_usdt, int(total_sp_receive)
+
 # 4. لوحة تحكم الإدارة الحصرية (/admin)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
@@ -110,7 +141,6 @@ def admin_panel(message):
     markup.add(
         types.InlineKeyboardButton("📊 تعديل سعر الشراء", callback_data="adm_set_buy"),
         types.InlineKeyboardButton("📊 تعديل سعر المبيع", callback_data="adm_set_sell"),
-        types.InlineKeyboardButton("⚙️ تعديل الرسوم المدمجة %", callback_data="adm_set_fee"),
         types.InlineKeyboardButton("📢 إرسال رسالة جماعية", callback_data="adm_broadcast"),
         types.InlineKeyboardButton("🟢 وضع النشاط", callback_data="adm_status_ON"),
         types.InlineKeyboardButton("🟡 وضع الاستراحة", callback_data="adm_status_REST"),
@@ -123,14 +153,14 @@ def admin_panel(message):
     info_text = (
         f"💼 **لوحة التحكم الإدارية والنظام المالي:**\n\n"
         f"• حالة النظام الحالية: {current_status}\n"
-        f"• سعر شراء USDT الحالي: `{get_setting('usdt_buy_rate')}` ل.س\n"
-        f"• سعر مبيع USDT الحالي: `{get_setting('usdt_sell_rate')}` ل.س\n"
-        f"• الرسوم المدمجة للبيع: `{get_setting('combined_fee_rate')}` %\n\n"
-        f"يرجى تحديد البند المطلوب لتعديل القيم نصياً:"
+        f"• سعر شراء USDT المعتمد (من العميل): `{get_setting('usdt_buy_rate')}` ل.س\n"
+        f"• سعر مبيع USDT المعتمد (إلى العميل): `{get_setting('usdt_sell_rate')}` ل.س\n"
+        f"• نظام العمولات الحالية: شريحة ديناميكية ذكية مدمجة تلقائياً.\n\n"
+        f"يرجى تحديد البند المطلوب لتعديل القيم نصياً أو تغيير وضع العمل:"
     )
     bot.send_message(message.chat.id, info_text, parse_mode="Markdown", reply_markup=markup)
 
-# 5. واجهة التشغيل الرئيسية للمستخدمين (/start)
+# 5. واجهة التشغيل الفخمة والمحدثة للمستخدمين (/start)
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
@@ -144,17 +174,24 @@ def send_welcome(message):
     if user_id in user_trade_steps: 
         del user_trade_steps[user_id]
     
+    # تصميم الأزرار التجارية المعتمدة والمتناسقة
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("🔄 قسم المبادلة والصرافة الآلية", callback_data="usr_trade_main"),
-        types.InlineKeyboardButton("📞 مركز الدعم الفني والاستفسارات", callback_data="usr_support_main")
+        types.InlineKeyboardButton("🔄 قسم الصرافة والمبادلة الآلية", callback_data="usr_trade_main")
+    )
+    # صف فرعي متجاوز وزر إعادة تشغيل فخم ومطمئن تجارياً
+    markup.row(
+        types.InlineKeyboardButton("📞 الدعم الفني", callback_data="usr_support_main"),
+        types.InlineKeyboardButton("🔄 إعادة تشغيل البوت", callback_data="usr_restart")
     )
     
-    bot.send_message(
-        message.chat.id, 
-        f"مرحباً بك {message.from_user.first_name} في المنصة الرسمية لخدمات الصرافة والتحويل المالي الذكي.\nيرجى تحديد نوع المعاملة المطلوبة من القائمة أدناه:", 
-        reply_markup=markup
+    welcome_text = (
+        f"📥 **أهلاً بك في منصة \"الوسيط الرقمي السوري\" الرائدة**\n"
+        f"🛡️ *بوابتك الآمنة والموثوقة للصرافة الرقمية والتحويل المالي الذكي في سوريا.*\n\n"
+        f"يسعدنا خدمتك وتوفير أفضل أسعار الصرف الرقمي على مدار الساعة وبأعلى معايير الأمان المالي والخصوصية.\n\n"
+        f"⚙️ **يرجى اختيار نوع المعاملة المالية المطلوبة من القائمة أدناه للبدء:**"
     )
+    bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown", reply_markup=markup)
 
 # 6. معالجة طلبات الأزرار والتحكم التفاعلي (Callback Queries)
 @bot.callback_query_handler(func=lambda call: True)
@@ -190,21 +227,24 @@ def handle_query(call):
             bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="☕️ مرحباً بك. الإدارة حالياً في استراحة مؤقتة لتجديد الطاقة. يمكنك حساب أسعار الصرف حالياً، وسنكون على استعداد تام لاستلام الوصل وتنفيذ المعاملة خلال دقائق معدودة. شكراً لانتظاركم الموقر.", reply_markup=markup)
             return
 
+    # زر إعادة التشغيل الذي يقوم بمسح الجلسة وتصفير البيانات المؤقتة
     if call.data == "usr_restart":
+        if user_id in user_trade_steps:
+            del user_trade_steps[user_id]
         try: bot.delete_message(chat_id, msg_id)
         except: pass
         send_welcome(call.message)
         return
 
     if call.data == "usr_trade_main":
-        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("📥 شراء USDT من المنصة", callback_data="usr_action_buy"),
-            types.InlineKeyboardButton("📤 بيع USDT إلى المنصة", callback_data="usr_action_sell")
+            types.InlineKeyboardButton("📈 شراء USDT من المنصة", callback_data="usr_action_buy"),
+            types.InlineKeyboardButton("📉 بيع USDT إلى المنصة", callback_data="usr_action_sell")
         )
-        markup.add(
-            types.InlineKeyboardButton("🔙 رجوع", callback_data="usr_restart"),
-            types.InlineKeyboardButton("🔄 إعادة تشغيل", callback_data="usr_restart")
+        markup.row(
+            types.InlineKeyboardButton("🔙 رجوع للخلف", callback_data="usr_restart"),
+            types.InlineKeyboardButton("🔄 تحديث الأسعار", callback_data="usr_trade_main")
         )
         
         buy_rate = get_setting("usdt_buy_rate")
@@ -214,7 +254,7 @@ def handle_query(call):
             f"📊 **نشرة أسعار الصرف الرسمية المعتمدة حالياً:**\n\n"
             f"• شراء المنصة للـ USDT (من العميل): `{buy_rate}` ل.س\n"
             f"• مبيع المنصة للـ USDT (إلى العميل): `{sell_rate}` ل.س\n\n"
-            f"يرجى تحديد طبيعة المعاملة المالية للبدء في إجراءات التدقيق:"
+            f"يرجى تحديد طبيعة المعاملة المالية المطلوبة لبدء الإجراءات:"
         )
         bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=info_text, parse_mode="Markdown", reply_markup=markup)
         return
@@ -225,11 +265,11 @@ def handle_query(call):
         
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("🌐 شبكة BEP20", callback_data="usr_net_BEP20"),
+            types.InlineKeyboardButton("🌐 شبكة TRON TRX", callback_data="usr_net_TRON_TRX"),
             types.InlineKeyboardButton("🌐 شبكة TON USDT", callback_data="usr_net_TON_USDT"),
-            types.InlineKeyboardButton("🌐 شبكة TRON TRX", callback_data="usr_net_TRON_TRX")
+            types.InlineKeyboardButton("🌐 شبكة BEP20", callback_data="usr_net_BEP20")
         )
-        markup.add(
+        markup.row(
             types.InlineKeyboardButton("🔙 رجوع", callback_data="usr_trade_main"),
             types.InlineKeyboardButton("🔄 إعادة تشغيل", callback_data="usr_restart")
         )
@@ -246,15 +286,19 @@ def handle_query(call):
                 types.InlineKeyboardButton("🔙 رجوع", callback_data=f"usr_action_{user_trade_steps[user_id]['action']}"),
                 types.InlineKeyboardButton("🔄 إعادة تشغيل", callback_data="usr_restart")
             )
-            bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="🔢 يرجى إدخال الكمية المالية المطلوبة بعملة الـ **USDT** (أرقام فقط، مثال: 50):", parse_mode="Markdown", reply_markup=markup)
+            bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="🔢 يرجى إدخال الكمية المالية المطلوبة بعملة الـ **USDT**\n(أرقام فقط، الحد الأدنى 5 USDT، مثال: 50):", parse_mode="Markdown", reply_markup=markup)
         return
 
+    # مركز الدعم الفني والرسائل المباشرة المطور (تواصل خارجي + فتح تذكرة داخلية)
     if call.data == "usr_support_main":
         user_trade_steps[user_id] = {"state": "WAIT_SUPPORT_MSG"}
         
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("💬 تواصل مباشر عبر التلغرام", url=SUPPORT_LINK),
+            types.InlineKeyboardButton("📩 فتح تذكرة دعم فني داخل البوت", callback_data="usr_open_ticket_local")
+        )
+        markup.row(
             types.InlineKeyboardButton("🔙 رجوع", callback_data="usr_restart"),
             types.InlineKeyboardButton("🔄 إعادة تشغيل", callback_data="usr_restart")
         )
@@ -263,9 +307,14 @@ def handle_query(call):
             f"📞 **مركز خدمات وتذاكر الدعم الفني المباشر:**\n\n"
             f"• المعرّف الخاص بحسابكم الموقر (ID): `{user_id}`\n"
             f"• حساب التلغرام الرسمي للمراسلة الفورية: @Syrusdt\n\n"
-            f"يمكنك الضغط على زر التواصل المباشر في الأسفل للمراسلة الفورية، أو كتابة استفسارك هنا نصياً ليتم فتح تذكرة دعم فني داخل البوت فوراً."
+            f"يمكنك الضغط على زر التواصل المباشر للمراسلة الفورية عبر حسابنا الشخصي، أو اضغط على زر فتح تذكرة دعم لإرسال استفسارك نصياً مباشرة داخل البوت."
         )
         bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text=support_text, parse_mode="Markdown", reply_markup=markup)
+        return
+
+    if call.data == "usr_open_ticket_local":
+        user_trade_steps[user_id] = {"state": "WAIT_SUPPORT_MSG"}
+        bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="📥 **قسم التذاكر الداخلية:**\n\nيرجى كتابة نص استفسارك أو مشكلتك هنا في حقل الكتابة مباشرة، وسيتم رفعه للإدارة فوراً:")
         return
 
     if call.data.startswith("adm_decision_") and user_id == ADMIN_CHAT_ID:
@@ -276,9 +325,9 @@ def handle_query(call):
         if decision == "approve":
             approve_text = (
                 f"🎉 **إشعار مالي رسمي:**\n\n"
-                f"تم التحقق من لقطة شاشة الإيصال المالي الخاص بكم، وقبول الطلب بنجاح من قبل الإدارة الموقرة.\n\n"
+                f"تم التحقق من لقطة شاشة الإيصال المالي الخاص بكم بنجاح، وقبول الطلب من قبل الإدارة الموقرة.\n\n"
                 f"📥 **الخطوة الإلزامية التالية:**\n"
-                f"يرجى إرسال (عنوان حساب شام كاش الخاص بكم) نصياً في حقل الكتابة فوراً، ليتمكن القسم المالي من إتمام عملية تحويل مستحقاتكم المالية دون تأخير."
+                f"يرجى إرسال (عنوان حساب شام كاش الخاص بكم) نصياً في حقل الكتابة فوراً، ليتمكن القسم المالي من إتمام عملية تحويل مستحقاتكم المالية دون أي تأخير."
             )
             bot.send_message(target_user_id, approve_text, parse_mode="Markdown")
             bot.edit_message_caption(chat_id=chat_id, message_id=msg_id, caption=f"✅ تم قبول المعاملة المالية للمستخدم `{target_user_id}` وإخطاره بطلب حساب شام كاش.")
@@ -321,10 +370,10 @@ def handle_text_messages(message):
 
         if user_id in user_trade_steps and str(user_trade_steps[user_id].get("state", "")).startswith("EDIT_"):
             state = user_trade_steps[user_id]["state"]
-            key_mapping = {"EDIT_BUY": "usdt_buy_rate", "EDIT_SELL": "usdt_sell_rate", "EDIT_FEE": "combined_fee_rate"}
+            key_mapping = {"EDIT_BUY": "usdt_buy_rate", "EDIT_SELL": "usdt_sell_rate"}
             if state in key_mapping:
                 update_setting(key_mapping[state], text)
-                bot.reply_to(message, "✅ تم تحديث النظام المالي والبيانات بنجاح في قاعدة البيانات المحلية.")
+                bot.reply_to(message, "✅ تم تحديث النظام المالي والأسعار بنجاح في قاعدة البيانات المحلية.")
             del user_trade_steps[user_id]
             return
             
@@ -336,7 +385,7 @@ def handle_text_messages(message):
                 reject_msg = (
                     f"❌ **إشعار رفض المعاملة المالية:**\n\n"
                     f"نأسف لإخطاركم برفض إيصال التحويل المالي من قبل قسم التدقيق والمطابقة.\n"
-                    f"📌 **السبب المعلن:** {text}\n\n"
+                    f"📌 **السبب المعلن للرفض:** {text}\n\n"
                     f"يرجى مراجعة وتعديل البيانات المعاملاتية والمحاولة مرة أخرى بدقة."
                 )
                 bot.send_message(target, reject_msg, parse_mode="Markdown")
@@ -356,6 +405,7 @@ def handle_text_messages(message):
     if is_blacklisted(user_id):
         return
 
+    # استقبال حساب شام كاش (الموجه من العميل في خطوة البيع)
     if text.isalnum() and len(text) > 20 and user_id not in user_trade_steps:
         wait_text = (
             "✅ **إشعار منظومة الصرف:**\n\n"
@@ -377,7 +427,6 @@ def handle_text_messages(message):
         user_trade_steps[user_id]["user_wallet"] = text
         user_trade_steps[user_id]["state"] = "WAIT_RECEIPT"
         
-        # [تعديل هام 🛑]: إضافة التحذير الصارم بخصوص كتابة الملاحظات أو الرموز في إشعار شام كاش
         buy_text = (
             f"📥 **تم تسجيل عنوان محفظة الاستلام الخاصة بكم بنجاح:**\n`{text}`\n\n"
             f"📌 **الخطوة الأخيرة لإتمام المعاملة:**\n"
@@ -391,25 +440,25 @@ def handle_text_messages(message):
         bot.send_message(message.chat.id, buy_text, parse_mode="Markdown")
         return
 
-    # حاسبة التدفق المالي والكميات المحددة من العملاء
+    # حاسبة التدفق المالي والشرائح المحددة حركياً من العملاء
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_AMOUNT":
         try:
             amount = float(text)
             action = user_trade_steps[user_id]["action"]
             network = user_trade_steps[user_id]["network"]
             
-            if amount < 2.0:
+            if amount < 5.0:
                 markup = types.InlineKeyboardMarkup().add(
                     types.InlineKeyboardButton("🔙 رجوع", callback_data=f"usr_net_{network}"),
                     types.InlineKeyboardButton("🔄 إعادة تشغيل", callback_data="usr_restart")
                 )
-                bot.reply_to(message, "❌ **خطأ تنظيمي:** الحد الأدنى المسموح به لإجراء عمليات البيع أو المبادلة عبر المنصة هو **2$ USDT** فقط كحد أدنى. يرجى إدخال قيمة مطابقة.", reply_markup=markup)
+                bot.reply_to(message, "❌ **خطأ تنظيمي:** الحد الأدنى المسموح به لإجراء المعاملات عبر منصة الوسيط الرقمي السوري هو **5$ USDT** كحد أدنى. يرجى إدخال قيمة مطابقة للشرائح.", reply_markup=markup)
                 return
                 
             rate = float(get_setting("usdt_sell_rate" if action == "buy" else "usdt_buy_rate"))
-            fee_rate = float(get_setting("combined_fee_rate"))
             
             if action == "buy":
+                # العميل يشتري من المنصة (تحسب بالمعادلة التقليدية مؤقتاً أو حسب سياستك)
                 total_sp_cost = amount * rate
                 summary_text = (
                     f"📋 **الفاتورة المالية المبدئية - أمر شراء USDT:**\n\n"
@@ -428,25 +477,30 @@ def handle_text_messages(message):
                 user_trade_steps[user_id]["state"] = "WAIT_BUY_WALLET"
                 
             else:
-                gross_sp = amount * rate
-                fee_deduction = gross_sp * (fee_rate / 100.0)
-                total_sp_receive = gross_sp - fee_deduction
+                # العميل يبيع للمنصة (تطبيق نظام الشرائح الحركية الجديد بالكامل والموثق)
+                tier_fee, network_fee, total_fee_usdt, total_sp_receive = calculate_buy_fees(amount, rate)
+                
+                fee_display = f"`{tier_fee}` USDT" if tier_fee > 0 else "4% (نسبة مئوية للمبالغ الضخمة)"
                 
                 summary_text = (
-                    f"📋 **الفاتورة المالية المبدئية - أمر بيع USDT:**\n\n"
-                    f"• الكمية الرقمية المراد إرسالها: `{amount}` USDT\n"
-                    f"• شبكة النقل الرقمية المختارة: `{network}`\n"
-                    f"• سعر صرف الشراء المعتمد: `{rate}` ل.س لكل دولار\n"
-                    f"• الرسوم المدمجة المخصومة (الشبكة + المنصة %): `{fee_rate}` %\n\n"
-                    f"💰 **المبلغ الإجمالي الصافي الذي ستستلمه بالليرة السورية:**\n"
-                    f"👉 **{int(total_sp_receive):,} ل.س**\n\n"
+                    f"📋 **الفاتورة المالية الرسمية - أمر بيع USDT:**\n\n"
+                    f"• **الكمية المرسلة من قِبلك:** `{amount}` USDT\n"
+                    f"• **شبكة وقناة النقل الرقمية:** `{network}`\n"
+                    f"• **سعر الصرف المعتمد حالياً:** `{rate:,}` ل.س لكل دولار\n\n"
+                    f"➖ **الخصومات المقتطعة لتغطية التكاليف:**\n"
+                    f"• رسوم الشريحة الحركية: {fee_display}\n"
+                    f"• رسوم شبكة النقل الرقمية الموحدة: `{network_fee}` USDT\n"
+                    f"• إجمالي العمولات المخصومة: `{total_fee_usdt}` USDT\n"
+                    f"• صافي الكمية المحسوبة لك: `{amount - total_fee_usdt}` USDT\n\n"
+                    f"💰 **المبلغ الصافي النهائي الذي ستستلمه بالليرة السورية:**\n"
+                    f"👉 **{total_sp_receive:,} ل.س**\n\n"
                     f"📥 **عنوان محفظة الإيداع الرسمية التابعة للمنصة:**\n"
-                    f"يرجى تحويل الكمية الصافية بدقة إلى عنوان شبكة **{network}** التالي:\n`{MY_WALLETS[network]}`\n\n"
+                    f"يرجى تحويل الكمية المطلوبة بدقة إلى عنوان شبكة **{network}** التالي:\n`{MY_WALLETS[network]}`\n\n"
                     f"⚠️ **تحذير أمني وقانوني صارم:**\n"
-                    f"تأكد تماماً من مطابقة شبكة النقل المختارة والمبلغ بدقة قبل تفعيل الأمر. بعد إتمام التحويل الرقمي، يرجى إرسال ملف الإشعار المالي كـ **صورة حية (Screenshot)** حصرياً هنا للتدقيق المالي والتسليم. إرسال بيانات مكتوبة يتسبب في رفض المعاملة وتجميد الصلاحيات."
+                    f"بعد إتمام التحويل الرقمي بنجاح، يرجى إرسال ملف الإشعار المالي كـ **صورة حية (Screenshot)** حصرياً هنا للتدقيق المالي والتسليم. إرسال بيانات مكتوبة أو إشعار يحتوي على أي ملاحظات نصية يتسبب في رفض المعاملة وتجميد الصلاحيات لحمايتنا."
                 )
                 user_trade_steps[user_id]["amount"] = amount
-                user_trade_steps[user_id]["total_sp"] = int(total_sp_receive)
+                user_trade_steps[user_id]["total_sp"] = total_sp_receive
                 user_trade_steps[user_id]["state"] = "WAIT_RECEIPT"
                 
             markup = types.InlineKeyboardMarkup().add(
@@ -459,7 +513,7 @@ def handle_text_messages(message):
         return
 
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_SUPPORT_MSG":
-        bot.reply_to(message, "✅ تم تسجيل وتوجيه تذكرة الدعم الفني بنجاح إلى القسم الإداري المختص، وسيتم مراجعتها والرد الرسمي المباشر عليها عبر هذا الحقل الموحد.")
+        bot.reply_to(message, "✅ تم تسجيل وتوجيه تذكرة الدعم الفني بنجاح إلى القسم الإداري المختص لـ \"الوسيط الرقمي السوري\"، وسيتم مراجعتها والرد الرسمي المباشر عليها عبر هذا الحقل الموحد.")
         
         adm_markup = types.InlineKeyboardMarkup(row_width=2)
         adm_markup.add(
@@ -480,7 +534,7 @@ def handle_text_messages(message):
         markup = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔄 إعادة محاولة إرسال الوصل كصورة", callback_data="usr_restart"))
         bot.reply_to(message, "❌ **خطأ في المطابقة الأمنية:** تم رفض البيانات المكتوبة. يرجى إرسال ملف الإيصال المالي المباشر كـ **صورة حية (Screenshot)** حصرياً لكي يتمكن النظام الحسابي من فحص المعاملة وتوثيقها.", reply_markup=markup)
 
-# 8. استقبال إيصالات الدفع (الصور الحية حصرياً وحظر الغش)
+# 8. استقبال إيصالات الدفع (الصور الحية حصرياً وحظر الغش والملاحظات النصية)
 @bot.message_handler(content_types=['photo'])
 def receive_receipt_photo(message):
     user_id = str(message.from_user.id)
@@ -490,7 +544,7 @@ def receive_receipt_photo(message):
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_RECEIPT":
         wait_msg = (
             "✅ **إشعار منظومة الصرف والتدقيق:**\n\n"
-            "مرحباً بك. تم **تسجيل** وتوثيق وثيقة الإيصال المالي الخاص بكم بنجاح، وتوجيه المعاملة مباشرة إلى قسم المطابقة الحسابية الخارجي.\n\n"
+            "مرحباً بك. تم **تسجيل** وتوثيق وثيقة الإيصال المالي الخاص بكم بنجاح، وتوجيه المعاملة مباشرة إلى قسم المطابقة الحسابية الخارجي الخاص بـ \"الوسيط الرقمي السوري\".\n\n"
             "⏳ يرجى الانتظار لعدة دقائق، حيث يتم حالياً فحص التذكرة المالية وإنهاء عملية تحويل مستحقاتكم دون أي تأخير. شكراً لثقتكم الموقرة وجاري المعالجة."
         )
         bot.reply_to(message, wait_msg, parse_mode="Markdown")
@@ -499,23 +553,23 @@ def receive_receipt_photo(message):
         amount = user_trade_steps[user_id]['amount']
         network = user_trade_steps[user_id]['network']
         total_sp = user_trade_steps[user_id]['total_sp']
-        user_wallet = user_trade_steps[user_id].get('user_wallet', 'مذكور في الخطوة التالية أو حوالة مباشرة لشام كاش')
+        user_wallet = user_trade_steps[user_id].get('user_wallet', 'حوالة مباشرة واستلام شام كاش لاحقاً')
         
         adm_markup = types.InlineKeyboardMarkup(row_width=2)
         adm_markup.add(
-            types.InlineKeyboardButton("✅ قبول واعتماد الطلب", callback_data=f"adm_decision_approve_{user_id}"),
+            types.InlineKeyboardButton("✅ قبول الطلب واعتماده", callback_data=f"adm_decision_approve_{user_id}"),
             types.InlineKeyboardButton("❌ رفض الطلب ماليًا", callback_data=f"adm_decision_reject_{user_id}")
         )
         
         caption_msg = (
-            f"🚨 **إشعار معاملة مالية جديدة واردة وبانتظار قرار الإدارة:**\n\n"
+            f"🚨 **معاملة مالية جديدة واردة وبانتظار قرار الإدارة:**\n\n"
             f"• معرّف حساب العميل المالي: `{user_id}`\n"
-            f"• طبيعة ونوع المعاملة: **{action}** (USDT)\n"
+            f"• نوع المعاملة: **{action}** (USDT)\n"
             f"• شبكة النقل المالي المعتمدة: `{network}`\n"
-            f"• كمية الأصول الرقمية المحددة: `{amount}` USDT\n"
-            f"• القيمة الإجمالية المقدرة بالعملة المحلية: **{total_sp:,} ل.س**\n"
-            f"• محفظة العميل الشخصية المستهدفة (في حال الشراء): `{user_wallet}`\n"
-            f"⚠️ تأكد من خلو إشعار الشام كاش من أي كتابة أو رموز قبل القبول!"
+            f"• كمية الأصول الرقمية الإجمالية: `{amount}` USDT\n"
+            f"• الصافي المقدر بالعملة المحلية للعميل: **{total_sp:,} ل.س**\n"
+            f"• محفظة العميل الشخصية المستهدفة (في حال الشراء): `{user_wallet}`\n\n"
+            f"⚠️ **تنبيه الإدارة:** تأكد من خلو إشعار شام كاش من أي كتابة أو ملاحظات أو رموز قبل الموافقة وإلا افعل الرفض المالي فورا!"
         )
         try:
             bot.send_photo(ADMIN_CHAT_ID, message.photo[-1].file_id, caption=caption_msg, parse_mode="Markdown", reply_markup=adm_markup)
@@ -529,9 +583,9 @@ def receive_receipt_photo(message):
         except Exception as e:
             logger.error(f"Failed to forward generic photo to admin: {e}")
 
-# 9. خادم ويب مدمج ومتوافق تقنياً مع بيئة خوادم Render لضمان الاستقرار الحركي للبوت ومنع توقفه
+# 9. خادم ويب مدمج ومتوافق تقنياً مع بيئة خوادم Render لمنع توقف البوت وضمان استمراره
 async def handle_render_web_request(request):
-    return web.Response(text="Corporate Pure USDT Exchange Platform Is Active with Advanced Integrated Systems.")
+    return web.Response(text="Syrian Digital Broker USDT Platform Is Active and Operating Stable.")
 
 def start_isolated_web_server():
     loop = asyncio.new_event_loop()
