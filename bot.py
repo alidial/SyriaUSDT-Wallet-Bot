@@ -15,12 +15,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. جلب التوكن والآيدي الصحيح المعدل بالملي 🎯
+# 2. جلب التوكن والآيدي الصحيح المعتمد 🎯
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA")
-ADMIN_CHAT_ID = "926536751"  # تم التعديل إلى رقمك الصحيح تماماً هنا ✅
+ADMIN_CHAT_ID = "926536751"  # الآيدي الصحيح الخاص بك بالملي ✅
 SUPPORT_LINK = "https://t.me/Syrusdt"
 
-MOUSA_API_TOKEN = "C280gLYN12_xlghy548ztmGu60VUsbHuf6c_6Mwgvpbdvltov3ktxxmDZjHN"
+# 🟢 تم تركيب توكن موسى كارد المكتمل والجديد كلياً هنا بنجاح:
+MOUSA_API_TOKEN = "C2BBglYMi2_xlgNy548z6MGu5OwQVUsbHuF6c_6PWgvp6bvdItov3ktXxxmQ2jHN"
 MOUSA_API_BASE_URL = "https://mousa-card.com/api/v2"
 
 # عناوين محافظك الرسمية المعتمدة
@@ -31,7 +32,6 @@ MY_WALLETS = {
     "SHAM_CASH": "7a93267a0832f55f8b35abeaf28f8960"
 }
 
-# تشغيل البوت بالتوكن الصحيح
 bot = telebot.TeleBot(BOT_TOKEN)
 user_trade_steps = {}
 
@@ -42,7 +42,7 @@ def init_db():
     cursor.execute('CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, balance REAL DEFAULT 0.0)')
     cursor.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)')
     
-    # أسعار ومحددات الصرافة للـ USDT
+    # إعدادات الصرافة الافتراضية
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_buy_rate', '15000')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_sell_rate', '14800')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('my_commission', '200')") 
@@ -50,7 +50,7 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_bep20', '0.3')") 
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_ton', '0.5')") 
     
-    # إعدادات متجر الخدمات (موسى كارد) ونسب الأرباح الإضافية للأدمن
+    # إعدادات أرباح طول الخانات
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_3', '5')")
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_4', '10')")
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('store_profit_5', '15')")
@@ -77,7 +77,7 @@ def update_setting(key, value):
     conn.commit()
     conn.close()
 
-# 4. حاسبة الأرباح التلقائية للمتجر بناءً على طول الخانات
+# 4. حاسبة الأرباح التلقائية
 def calculate_custom_price(original_price_str):
     try:
         raw_price = float(original_price_str)
@@ -94,7 +94,7 @@ def calculate_custom_price(original_price_str):
     except Exception:
         return original_price_str
 
-# 5. جلب خدمات Mousa Card وتصنيفها
+# 5. جلب خدمات Mousa Card وتصنيفها مع معالجة الاستثناءات
 def fetch_mousa_products_by_category(category_keyword):
     try:
         headers = {"Authorization": f"Bearer {MOUSA_API_TOKEN}", "Content-Type": "application/json"}
@@ -112,15 +112,16 @@ def fetch_mousa_products_by_category(category_keyword):
                 full_text = name + " " + category
                 
                 if category_keyword == "games":
-                    if any(k in full_text for k in ["pubg", "free fire", "جواهر", "شحن", "ببجي", "uc", "game", "gems", "cod", "valorant", "فري فاير"]):
+                    if any(k in full_text for k in ["pubg", "free fire", "جواهر", "شحن", "ببجي", "uc", "game", "gems", "cod", "valorant", "فري فاير", "coins", "كاش"]):
                         filtered_products.append(service)
                 elif category_keyword == "chat":
-                    if any(k in full_text for k in ["likee", "tiktok", "تيك توك", "شات", "chat", "bigo", "tango", "يلا"]):
+                    if any(k in full_text for k in ["likee", "tiktok", "تيك توك", "شات", "chat", "bigo", "tango", "يلا", "yalla"]):
                         filtered_products.append(service)
                 elif category_keyword == "vpn":
                     if any(k in full_text for k in ["vpn", "بروكسي", "حظر", "proxy", "nord", "express"]):
                         filtered_products.append(service)
             
+            # إذا تعذر العثور على كلمات الفرز المباشر، يعرض أول 12 خدمة نشطة في حسابك كدعم احتياطي تلقائي
             if not filtered_products and all_services:
                 return all_services[:12]
                 
@@ -130,7 +131,7 @@ def fetch_mousa_products_by_category(category_keyword):
         logger.error(f"❌ خطأ أثناء الاتصال بـ Mousa Card API: {e}")
         return []
 
-# 6. لوحة تحكم الأدمن الشاملة بالكامل (/admin)
+# 6. لوحة تحكم الأدمن (/admin)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if str(message.from_user.id) != ADMIN_CHAT_ID:
@@ -173,7 +174,7 @@ def admin_panel(message):
     )
     bot.reply_to(message, admin_msg, parse_mode="Markdown", reply_markup=markup)
 
-# 7. القائمة الرئيسية والرسائل المقسمة ومتجر الـ 3 أعمدة
+# 7. القائمة الرئيسية ومتجر الـ 3 أعمدة
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
@@ -241,7 +242,6 @@ def handle_query(call):
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="⚠️ هذا القسم قيد التحديث المؤقت حالياً.", reply_markup=markup)
             return
             
-        # 🟢 بناء واجهة الأزرار بـ 3 أعمدة متناسقة بالكامل للمتجر
         markup = types.InlineKeyboardMarkup(row_width=3)
         btn_list = []
         for prod in products[:12]:
@@ -343,12 +343,11 @@ def handle_query(call):
         else:
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ القائمة الرئيسية لمتجر سوريا المطور متاح أمامك الآن:", reply_markup=markup)
 
-# 8. إدارة استقبال الرسائل النصية وحساب العمولات والنسب المئوية
+# 8. إدارة الرسائل النصية وحساب العمولات والنسب
 @bot.message_handler(func=lambda message: True)
 def handle_text_messages(message):
     user_id = str(message.from_user.id)
     
-    # استقبال تعديلات الإدارة للقيم والنسب
     if user_id == ADMIN_CHAT_ID and user_id in user_trade_steps and user_trade_steps[user_id].get("state", "").startswith("EDIT_"):
         state = user_trade_steps[user_id]["state"]
         new_value = message.text
@@ -369,7 +368,6 @@ def handle_text_messages(message):
         del user_trade_steps[user_id]
         return
 
-    # حساب المعاملة المالية عند إدخال العميل للرصيد المستهدف بالـ USDT
     if user_id in user_trade_steps and user_trade_steps[user_id].get("state") == "WAIT_AMOUNT":
         amount_text = message.text
         try:
@@ -429,7 +427,7 @@ def handle_text_messages(message):
         )
         bot.reply_to(message, instruction_msg, parse_mode="Markdown")
 
-# 9. استقبال صورة إيصال التحويل المالي وتمريره للإدارة مع فرز التفاصيل الكاملة
+# 9. استقبال صورة إيصال التحويل
 @bot.message_handler(content_types=['photo'])
 def receive_receipt_photo(message):
     user_id = str(message.from_user.id)
