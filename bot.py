@@ -119,9 +119,9 @@ def add_to_blacklist(user_id):
     conn.commit()
     conn.close()
 
-# دالة حساب العمولات لشريحة بيع الـ USDT المعتمدة (مع رسوم النقل والغاز 1.10%)
+# دالة حساب العمولات المحدثة بالكامل (1.10% لجميع الشرائح دون تداخل حسابي)
 def calculate_buy_fees(amount, rate):
-    network_fee = amount * 0.0110  # رسوم شبكة النقل والغاز 1.10% حركياً من إجمالي المبلغ
+    network_fee = amount * 0.0110  # رسوم شبكة النقل والغاز 1.10% حركياً لجميع الشرائح
     
     if 5 <= amount <= 9:
         tier_fee = 1.0
@@ -138,10 +138,11 @@ def calculate_buy_fees(amount, rate):
     elif 60 <= amount <= 99:
         tier_fee = 3.50
     elif 100 <= amount <= 6000:
-        total_fee_usdt = (amount * 0.041) + network_fee
+        # تم إصلاح هذه الشريحة لجمع رسوم المنصة (3%) مع رسوم النقل والغاز (1.10%) تلقائياً
+        total_fee_usdt = (amount * 0.03) + network_fee
         net_amount_usdt = amount - total_fee_usdt
         total_sp_receive = net_amount_usdt * rate
-        return 4.1, network_fee, total_fee_usdt, int(total_sp_receive)
+        return 3.0, network_fee, total_fee_usdt, int(total_sp_receive)
     else:
         return 0, 0, 0, 0
         
@@ -160,8 +161,8 @@ def admin_panel(message):
         
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("💵 تعديل سعر الشراء", callback_data="adm_set_buy"),
-        types.InlineKeyboardButton("💰 تعديل سعر المبيع", callback_data="adm_set_sell"),
+        types.InlineKeyboardButton("📥 تعديل سعر الشراء", callback_data="adm_set_buy"),
+        types.InlineKeyboardButton("📤 تعديل سعر المبيع", callback_data="adm_set_sell"),
         types.InlineKeyboardButton("📢 إرسال رسالة جماعية", callback_data="adm_broadcast"),
         types.InlineKeyboardButton("📊 عرض إحصائيات المنصة", callback_data="adm_view_stats"),
         types.InlineKeyboardButton("🟢 وضع النشاط", callback_data="adm_status_ON"),
@@ -201,7 +202,7 @@ def send_welcome(message):
     )
     markup.row(
         types.InlineKeyboardButton("📞 الدعم الفني المباشر", callback_data="usr_support_main"),
-        types.InlineKeyboardButton("🔄 تنشيط النظام", callback_data="usr_restart")
+        types.InlineKeyboardButton("🔄 تنشيط النظام من جديد", callback_data="usr_restart")
     )
     
     welcome_text = (
@@ -380,7 +381,7 @@ def handle_query(call):
                 types.InlineKeyboardButton("🔙 رجوع", callback_data=f"usr_action_{user_trade_steps[user_id]['action']}"),
                 types.InlineKeyboardButton("🔄 إعادة تعيين", callback_data="usr_restart")
             )
-            bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="🔢 **يرجى إدخال القيمة المالية المطلوبة بعملة الـ USDT**\n(يرجى كتابة أرقام فقط، الحد الأدنى المسميت به هو 5 USDT، مثال: 50):", parse_mode="Markdown", reply_markup=markup)
+            bot.edit_message_text(chat_id=chat_id, message_id=msg_id, text="🔢 **يرجى إدخال القيمة المالية المطلوبة بعملة الـ USDT**\n(يرجى كتابة أرقام فقط، الحد الأدنى المسموح به هو 5 USDT، مثال: 50):", parse_mode="Markdown", reply_markup=markup)
         return
 
     if call.data == "usr_confirm_wallet":
@@ -652,7 +653,7 @@ def handle_text_messages(message):
                 
                 summary_text = (
                     f"📋 **الفاتورة المالية الرسمية - أمر بيع USDT:**\n\n"
-                    f"⏳ **مؤقت صلاحية الفاتورة وثبات السعر:** تظل صلاحية هذه الفاتورة سارية لمدة **15 دقيقة فقط** نظراً لتقلبات أسعار الصخر الرقمية.\n\n"
+                    f"⏳ **مؤقت صلاحية الفاتورة وثبات السعر:** تظل صلاحية هذه الفاتورة سارية لمدة **15 دقيقة فقط** نظراً لتقلبات أسعار الصرف الرقمية.\n\n"
                     f"• **الكمية المرسلة من قِبلك:** `{amount}` USDT\n"
                     f"• **شبكة وقناة النقل الرقمية:** `{network}`\n"
                     f"• **سعر الصرف المعتمد حالياً:** `{rate:,}` ل.س لكل دولار\n\n"
