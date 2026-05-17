@@ -2,6 +2,12 @@ import logging
 import asyncio
 import os
 import threading
+
+# حيلة برمجية لخداع بايثون 3.14 وحل مشكلة الـ AttributeError نهائياً
+from telegram.ext import Updater
+if not hasattr(Updater, '_Updater__polling_cleanup_cb'):
+    setattr(Updater, '_Updater__polling_cleanup_cb', None)
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -32,7 +38,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     await update.message.reply_text(
         f"👋 أهلاً بك يا {user_name} في بوت سوريا USDT المطور!\n\n"
-        "السيرفر يعمل الآن بأعلى استقرار على بيئة بايثون القياسية.",
+        "تم تجاوز مشكلة البيئة التجريبية بنجاح والسيرفر مستقر الآن.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("الدعم الفني", url=SUPPORT_LINK)]
         ])
@@ -48,7 +54,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_unexpected_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("يرجى إرسال /start لتشغيل البوت.")
 
-# 4. إعداد خادم الويب في خيط منفصل
+# 4. إعداد خادم الويب ليشتغل في خيط منفصل لتلبية طلبات Render
 async def handle_render_web_request(request):
     return web.Response(text="Bot Service is Active and Running!")
 
@@ -71,9 +77,9 @@ def start_web_server_thread():
 
 # 5. الدالة الرئيسية للتشغيل المستقر
 def main():
-    logger.info("--- جاري إقلاع نظام البوت المعزول ---")
+    logger.info("--- جاري إقلاع نظام البوت المعزول مع الرقعة الذكية ---")
     
-    # تشغيل سيرفر الويب في خلفية النظام لتلبية متطلبات Render فوراً
+    # تشغيل سيرفر الويب في خلفية النظام فوراً
     web_thread = threading.Thread(target=start_web_server_thread, daemon=True)
     web_thread.start()
     
@@ -96,7 +102,7 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unexpected_message))
 
     # تشغيل البوت بسحب التحديثات المستقر
-    logger.info("--- تم إطلاق البوت بنجاح تام وبدون أي تعارض بيئي ---")
+    logger.info("--- تم إطلاق البوت بنجاح وتجاوز حواجز بايثون 3.14 ---")
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
