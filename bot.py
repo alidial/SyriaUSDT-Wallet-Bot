@@ -14,18 +14,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. إعداد التوكن والآيدي الصحيح الخاص بك 🎯
+# 2. إعداد التوكن والآيدي الصحيح والمؤكد الخاص بك 🎯
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAF0SivQS_NiDcPaYiZFrt1p0Ep_T13lJTw")
-ADMIN_CHAT_ID = "926536751"  # آيديك الصحيح والمثبت ✅
+ADMIN_CHAT_ID = "926536751"  # تم تثبيت آيديك الصحيح والمؤكد هنا ✅
 
 SUPPORT_LINK = "https://t.me/Syrusdt"
 
-# عناوين المحافظ الرسمية المحدثة والصحيحة 🌐
+# عناوين المحافظ الرسمية الصحيحة والمحدثة 🌐
 MY_WALLETS = {
     "TRC20": "TAnv4K6gGk99G35uD71NymqXF2uC57xJAt",
-    "BEP20": "0x6567Dc3Dad88274B121d651679778C0aB9f87804",  # تم تحديث عنوان BEP20 الجديد هنا بنجاح ✅
+    "BEP20": "0x6567Dc3Dad88274B121d651679778C0aB9f87804",  
     "TON": "UQDbXMU9L45iztaFrwQdXMMqd6pMjsDPma4Jba_pWTRnSfEa",  
-    "SHAM_CASH": "9542037"  # حساب شام كاش الصحيح
+    "SHAM_CASH": "7a93267a0832f55f8b35abeaf28f8960"  # تم تثبيت رقم حساب شام كاش الصحيح والمؤكد ✅
 }
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -39,12 +39,12 @@ def init_db():
     cursor.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)')
     
     # أسعار الصرافة الافتراضية والنسب بالليرة السورية
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_buy_rate', '15000')") # سعر شراء المتجر من العميل
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_sell_rate', '15500')") # سعر مبيع المتجر للعميل
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('my_commission', '200')") # عمولتك الثابتة
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_trc20', '1.5')") # رسوم شبكة TRC20 بالـ USDT
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_bep20', '0.3')") # رسوم شبكة BEP20 بالـ USDT
-    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_ton', '0.5')") # رسوم شبكة TON بالـ USDT
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_buy_rate', '15000')") 
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('usdt_sell_rate', '15500')") 
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('my_commission', '200')") 
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_trc20', '1.5')") 
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_bep20', '0.3')") 
+    cursor.execute("INSERT OR IGNORE INTO settings VALUES ('network_fee_ton', '0.5')") 
     
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('work_hours', '10:00 AM - 12:00 PM')")
     cursor.execute("INSERT OR IGNORE INTO settings VALUES ('bot_status', 'ON')")
@@ -229,7 +229,7 @@ def handle_text_messages(message):
             my_commission = float(get_setting("my_commission"))
             network_fee = float(get_setting(f"network_fee_{network.lower()}"))
             
-            if action == "buy": # العميل يشتري USDT
+            if action == "buy": 
                 total_usdt_needed = amount + network_fee
                 total_sp_cost = (total_usdt_needed * rate) + my_commission
                 summary_text = (
@@ -245,7 +245,7 @@ def handle_text_messages(message):
                     f"`{MY_WALLETS['SHAM_CASH']}`\n\n"
                     f"📸 بعد التحويل، أرسل لقطة شاشة الوصل (Screenshot) هنا فوراً لتأكيد طلبك وتلقي الرصيد."
                 )
-            else: # العميل يبيع USDT
+            else: 
                 total_sp_receive = (amount * rate) - my_commission
                 summary_text = (
                     f"📊 **تفاصيل عملية بيع USDT واستلام ليرة سورية:**\n\n"
@@ -304,7 +304,7 @@ def receive_receipt_photo(message):
 
 # 9. خادم ويب مدمج ومتوافق مع Render لضمان الاستقرار الحركي للبوت ومنع توقفه
 async def handle_render_web_request(request):
-    return web.Response(text="Syria Pure USDT Exchange Bot Is Fully Updated with correct BEP20 Wallet!")
+    return web.Response(text="Syria Pure USDT Exchange Bot Is Fully Cleaned And Checked!")
 
 def start_isolated_web_server():
     loop = asyncio.new_event_loop()
