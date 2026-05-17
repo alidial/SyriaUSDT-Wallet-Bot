@@ -8,30 +8,23 @@ from aiohttp import web
 import asyncio
 import requests
 
-# محاولة تحميل مكتبة python-dotenv لقراءة المتغيرات محلياً إن وجدت أثناء التطوير
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-# 1. إعداد السجلات ومراقبة الأخطاء (Logs)
+# 1. إعداد السجلات (Logs) لمراقبة الاتصال
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والإعدادات - جلب ديناميكي آمن مع خيار احتياطي (Fallback)
-# التوكن الجديد مدمج هنا كخيار افتراضي متوافق تماماً مع حماية بيئة Render
+# 2. البيانات الأساسية والإعدادات الثابتة (التوكن الجديد مدمج بشكل مباشر وصارم)
+# التوكن الجديد مدمج هنا كقيمة افتراضية ثابتة لمنع المنصة من استخدام التوكن القديم
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAGhwQrrtdyC1ihQ5cn2iaBshIcnemEM3WA").strip()
-ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "920536751")  
-SUPPORT_LINK = os.environ.get("SUPPORT_LINK", "https://t.me/Syrusdt")
+ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "920536751").strip()
+SUPPORT_LINK = os.environ.get("SUPPORT_LINK", "https://t.me/Syrusdt").strip()
 
 MOUSA_API_TOKEN = os.environ.get("MOUSA_API_TOKEN", "C280gLYN12_xlghy548ztmGu60VUsbHuf6c_6Mwgvpbdvltov3ktxxmDZjHN").strip()
-MOUSA_API_BASE_URL = os.environ.get("MOUSA_API_BASE_URL", "https://mousa-card.com/api/v2")
+MOUSA_API_BASE_URL = os.environ.get("MOUSA_API_BASE_URL", "https://mousa-card.com/api/v2").strip()
 
-# عناوين محافظك الرسمية المعتمدة بنسبة 100%
+# عناوين المحافظ الرسمية والمعتمدة بنسبة 100%
 MY_WALLETS = {
     "TRC20": os.environ.get("WALLET_TRC20", "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B").strip(),
     "BEP20": os.environ.get("WALLET_BEP20", "0x6567Dc3Dad882748121d65167977Bc0aB9f87804").strip(),
@@ -139,7 +132,7 @@ def admin_panel(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("💵 سعر الشراء الخام", callback_data="set_buy"),
-        types.InlineKeyboardButton("💵 سعر المبيع الخام", callback_data="set_sell"),
+        types.InlineKeyboardButton("💵 سعر Mبيع الخام", callback_data="set_sell"),
         types.InlineKeyboardButton("💰 عمولتك بالليرة", callback_data="set_mycomm"),
         types.InlineKeyboardButton("🌐 عمولة منصة TRC20", callback_data="set_feetrc"),
         types.InlineKeyboardButton("🌐 عمولة منصة BEP20", callback_data="set_feebep"),
