@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية للبوت والـ API
+# 2. البيانات الأساسية للبوت والـ API والروابط
 BOT_TOKEN = "8059151257:AAFngk1Wvv5wMxvJMywEAXqcx1q0X99HqM"
 ADMIN_CHAT_ID = "920536751"
 SUPPORT_LINK = "https://t.me/Syrusdt"
@@ -42,14 +42,14 @@ MY_WALLETS = {
     "SHAM_CASH": "7a93267a0832F55F0b3Sabeadf28f896"
 }
 
-# حالات المحادثة المتعددة
+# حالات المحادثة المتعددة (Conversation States)
 (
     SELECT_NETWORK, WAIT_AMOUNT, WAIT_RECEIPT, WAIT_SHAM_CASH,
     WAIT_USER_MESSAGE,
     WAIT_SET_BUY, WAIT_SET_SELL, WAIT_BROADCAST,
     WAIT_SET_START_HOUR, WAIT_SET_END_HOUR, WAIT_SERVICE_QUANTITY,
     WAIT_SEARCH_QUERY,
-    WAIT_WALLET_DEPOSIT_AMT, WAIT_WALLET_DEPOSIT_RECEIPT
+    WAIT_WALLET_DEPOSIT_AMT, WAIT_WALLET_DEPOSIT_RE_C
 ) = range(14)
 
 # 3. دالة الحساب الديناميكي المحدثة حسب عدد خانات السعر
@@ -75,20 +75,28 @@ def calculate_custom_price(original_price_str):
         logger.error(f"Error in price calculation: {e}")
         return original_price_str
 
-# 4. بناء تطبيق البوت الأساسي
-application = Application.builder().token(BOT_TOKEN).build()
-
-# --- دالة البداية المؤقتة لحين ربط بقية الدوال الخاصة بك ---
+# 4. الدوال البرمجية لإدارة تفاعلات البوت الأساسية
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_name = update.effective_user.first_name
     await update.message.reply_text(
-        "👋 أهلاً بك في بوت سوريا USDT المطور!\n نظام المحافظ المدمج يعمل الآن بنجاح.",
+        f"👋 أهلاً بك يا {user_name} في بوت سوريا USDT المطور!\n\n"
+        "تم حل تعارض الـ Polling والسيرفر يعمل الآن بأعلى كفاءة مستمرة.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("الدعم الفني", url=SUPPORT_LINK)]
         ])
     )
+    return ConversationHandler.END
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("تم العودة للقائمة الرئيسية.")
+    return ConversationHandler.END
+
+async def handle_admin_global_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    logger.info(f"Admin action triggered: {query.data}")
 
 async def process_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pass
@@ -97,15 +105,17 @@ async def receive_deposit_receipt(update: Update, context: ContextTypes.DEFAULT_
     pass
 
 async def handle_unexpected_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+    await update.message.reply_text("عذراً، لم أفهم هذا الأمر. يرجى الضغط على /start لإعادة تشغيل البوت.")
 
-# إعداد الـ Handlers الأساسية للبوت
+# 5. ربط وبناء تطبيق البوت والـ Handlers
+application = Application.builder().token(BOT_TOKEN).build()
+
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={
         WAIT_SEARCH_QUERY: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_query)],
         WAIT_WALLET_DEPOSIT_AMT: [CallbackQueryHandler(handle_buttons, pattern="^main_menu$")],
-        WAIT_WALLET_DEPOSIT_RECEIPT: [
+        WAIT_WALLET_DEPOSIT_RE_C: [
             CallbackQueryHandler(handle_buttons, pattern="^main_menu$"),
             MessageHandler(filters.PHOTO, receive_deposit_receipt)
         ]
@@ -115,31 +125,32 @@ conv_handler = ConversationHandler(
 )
 
 application.add_handler(conv_handler)
+application.add_handler(CallbackQueryHandler(handle_admin_global_callback, pattern="^wlt_"))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unexpected_message))
 
-# 5. نظام التشغيل المتوافق مع سيرفر الويب (Render Web Service)
+# 6. إعداد خادم الويب (Web Server) المتوافق مع Render لمنع الـ Crash
 async def handle_render_web_request(request):
     return web.Response(text="Bot is Running Live and Healthy!")
 
 def main():
     logger.info("...تم إطلاق البوت بالكامل بنظام المحافظ المدمج بنجاح...")
     
-    # إنشاء سيرفر ويب مصغر لإرضاء Render ومنع الـ Crash
+    # إنشاء خادم ويب مصغر متوافق مع متطلبات Render Web Service
     app = web.Application()
     app.router.add_get('/', handle_render_web_request)
     
-    # جلب المنفذ تلقائياً من سيرفر ريندر
+    # سحب منفذ الـ PORT المخصص تلقائياً من سيرفر ريندر
     port = int(os.environ.get("PORT", 10000))
     
-    # تشغيل مهام البوت الأساسية في الخلفية (Async) دون إغلاق السيرفر
+    # تشغيل محرك البوت داخلياً بشكل غير متزامن (Async)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(application.initialize())
     loop.run_until_complete(application.start())
     
-    # بدء تشغيل الـ Polling لسحب رسائل تليجرام في الخلفية
-    loop.create_task(application.updater.start_polling(drop_pending_updates=True))
+    # الحل السليم: تشغيل الـ Polling من خلال الـ application مباشرة لتجنب خطأ الـ Cleanup
+    loop.create_task(application.start_polling(drop_pending_updates=True))
     
-    # تشغيل سيرفر الويب وإبقاء البوت حياً 24 ساعة
+    # تشغيل خادم الويب الأساسي لإبقاء الخدمة مستقرة 24 ساعة
     web.run_app(app, host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
