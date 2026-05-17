@@ -15,8 +15,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2. البيانات الأساسية والإعدادات الثابتة
-# التعديل الحاسم هنا: الكود سيقوم بسحب التوكن الصحيح الحقيقي من لوحة تحكم Render أولاً
+# 2. البيانات الأساسية والإعدادات الثابتة (محدثة بالكامل)
+# هنا قمنا بوضع التوكن الصحيح الذي قمت بإضافته في الـ Environment بنجاح!
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8859151257:AAFQ7WpXsjYg_RJnHgE82ZU_O-WjXUtUaW8").strip()
 ADMIN_CHAT_ID = "920536751"  
 SUPPORT_LINK = "https://t.me/Syrusdt"
@@ -280,7 +280,7 @@ def handle_query(call):
             types.InlineKeyboardButton("💰 شحن محفظة البوت (Sham Cash)", callback_data="deposit_wallet")
         )
         if call.data == "deposit_wallet":
-            deposit_text = f"💰 **شحن محفظة المتجر المحلية عن طريق (Sham Cash)**\n\n📌 **رقم حساب Sham Cash الرسمي والمعتمد للمتجر:**\n`7a93267a0832f55f8b35abeaf28f8960`\n\nيرجى تحويل الرصيد المطلوب، ثم أرسل لقطة شاشة للوصل المالي للدعم الفني لتفعيل حسابك فوراً."
+            deposit_text = f"💰 **شحن محفظة المتجر المحلية عن طريق (Sham Cash)**\n\n📌 **رقم حساب Sham Cash الرسمي والمعتمد للمتجر:**\n`{MY_WALLETS['SHAM_CASH']}`\n\nيرجى تحويل الرصيد المطلوب، ثم أرسل لقطة شاشة للوصل المالي للدعم الفني لتفعيل حسابك فوراً."
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=deposit_text, parse_mode="Markdown", reply_markup=markup)
         else:
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🗂️ القائمة الرئيسية لمتجر سوريا المطور متاح أمامك الآن:", reply_markup=markup)
@@ -341,7 +341,7 @@ def handle_text_messages(message):
                 f"• إجمالي الكمية المطلوب دفع قيمتها: `{total_usdt_needed} USDT`\n"
                 f"🔥 **الصافي المطلوب تحويله عبر شام كاش:** **{total_syp:,.0f} ليرة سورية**"
             )
-            target_wallet = "7a93267a0832f55f8b35abeaf28f8960"
+            target_wallet = MY_WALLETS["SHAM_CASH"]
             wallet_title = "حساب Sham Cash السوري المعتمد للمتجر"
         else:
             total_syp = amount * sell_rate
@@ -351,12 +351,6 @@ def handle_text_messages(message):
                 f"🔥 **المبلغ النهائي الذي ستستلمه كاش:** **{total_syp:,.0f} ليرة سورية**\n"
                 f"⚠️ *ملاحظة: تأكد من إرسال الكمية كاملة لكي تصل صافية لمحفظتنا.*"
             )
-            # جلب المحفظة المناسبة ديناميكياً لتفادي أي خطأ
-            MY_WALLETS = {
-                "TRC20": "TKDPfmurDu9x7MgWPNUAa9i12wD5Enaw1B",
-                "BEP20": "0x6567Dc3Dad882748121d65167977Bc0aB9f87804",
-                "TON": "UQDbXMU9L45iztaFrwQdXMMqd6pMjsDPma4Jba_pWTRnSfEa"
-            }
             target_wallet = MY_WALLETS.get(network, "غير متوفر")
             wallet_title = f"عنوان محفظة USDT الرسمية لشبكة ({network})"
             
@@ -373,7 +367,7 @@ def handle_text_messages(message):
         )
         bot.reply_to(message, instruction_msg, parse_mode="Markdown")
 
-# 9. استقبال الإيصال وتوجيهه للأدمن والعناوين الصحيحة
+# 9. استقبال الإيصال وتوجيهه للأدمن بالعناوين الصحيحة
 @bot.message_handler(content_types=['photo'])
 def receive_receipt_photo(message):
     user_id = str(message.from_user.id)
@@ -412,7 +406,7 @@ def receive_receipt_photo(message):
             f"{details_text}\n\n"
             f"👇 صورة الإيصال أو الوصل المرفق للمطابقة الحية اليدوية:"
         )
-        try: bot.send_photo("920536751", photo_file_id, caption=admin_report_text, parse_mode="Markdown")
+        try: bot.send_photo(ADMIN_CHAT_ID, photo_file_id, caption=admin_report_text, parse_mode="Markdown")
         except Exception as e: logger.error(f"❌ خطأ في تحويل الإيصال للأدمن: {e}")
         del user_trade_steps[user_id]
 
